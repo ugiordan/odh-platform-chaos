@@ -13,10 +13,12 @@ func DelayConfig(delay time.Duration) sdk.FaultSpec {
 	}
 }
 
-// JitterConfig creates a fault that adds a random delay up to maxJitter.
-func JitterConfig(maxJitter time.Duration) sdk.FaultSpec {
+// RandomDelayConfig creates a fault that sets a fixed delay at config creation time.
+// Despite the name suggesting randomness, the delay value is determined once when
+// the config is created. Use DelayConfig if you want explicit fixed-delay semantics.
+func RandomDelayConfig(maxDelay time.Duration) sdk.FaultSpec {
 	return sdk.FaultSpec{
-		Delay: maxJitter,
+		Delay: maxDelay,
 	}
 }
 

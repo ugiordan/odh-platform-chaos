@@ -23,16 +23,16 @@ func TestDelayConfigSmallDuration(t *testing.T) {
 	assert.Equal(t, "", spec.Error)
 }
 
-func TestJitterConfig(t *testing.T) {
-	spec := JitterConfig(500 * time.Millisecond)
+func TestRandomDelayConfig(t *testing.T) {
+	spec := RandomDelayConfig(500 * time.Millisecond)
 
 	assert.Equal(t, 500*time.Millisecond, spec.Delay)
 	assert.Equal(t, 0.0, spec.ErrorRate)
 	assert.Equal(t, "", spec.Error)
 }
 
-func TestJitterConfigLargeDuration(t *testing.T) {
-	spec := JitterConfig(5 * time.Second)
+func TestRandomDelayConfigLargeDuration(t *testing.T) {
+	spec := RandomDelayConfig(5 * time.Second)
 
 	assert.Equal(t, 5*time.Second, spec.Delay)
 	assert.Equal(t, 0.0, spec.ErrorRate)

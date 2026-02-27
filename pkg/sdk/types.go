@@ -1,7 +1,6 @@
 package sdk
 
 import (
-	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -19,6 +18,7 @@ const (
 	OpPatch       Operation = "patch"
 	OpDeleteAllOf Operation = "deleteAllOf"
 	OpReconcile   Operation = "reconcile"
+	OpApply       Operation = "apply"
 )
 
 // FaultSpec defines a single fault injection point.
@@ -33,7 +33,7 @@ type FaultSpec struct {
 type FaultConfig struct {
 	mu     sync.RWMutex
 	Active bool                 `json:"active" yaml:"active"`
-	Faults map[string]FaultSpec `json:"faults,omitempty" yaml:"faults,omitempty"`
+	Faults map[Operation]FaultSpec `json:"faults,omitempty" yaml:"faults,omitempty"`
 }
 
 // IsActive returns whether fault injection is currently enabled.
@@ -46,9 +46,20 @@ func (f *FaultConfig) IsActive() bool {
 	return f.Active
 }
 
+// ChaosError is returned by MaybeInject when a fault is triggered.
+// Use errors.As to distinguish chaos-injected errors from real errors.
+type ChaosError struct {
+	Operation Operation
+	Message   string
+}
+
+func (e *ChaosError) Error() string {
+	return e.Message
+}
+
 // MaybeInject checks if a fault should be injected for the given operation.
 // Returns nil if no fault applies (inactive, no matching operation, or rate miss).
-func (f *FaultConfig) MaybeInject(operation string) error {
+func (f *FaultConfig) MaybeInject(operation Operation) error {
 	if f == nil {
 		return nil
 	}
@@ -65,7 +76,7 @@ func (f *FaultConfig) MaybeInject(operation string) error {
 		time.Sleep(spec.Delay)
 	}
 	if spec.ErrorRate > 0 && rand.Float64() < spec.ErrorRate {
-		return fmt.Errorf("%s", spec.Error)
+		return &ChaosError{Operation: operation, Message: spec.Error}
 	}
 	return nil
 }

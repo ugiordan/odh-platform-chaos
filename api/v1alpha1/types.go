@@ -48,7 +48,6 @@ type CheckType string
 const (
 	CheckConditionTrue  CheckType = "conditionTrue"
 	CheckResourceExists CheckType = "resourceExists"
-	CheckPrometheusQuery CheckType = "prometheusQuery"
 )
 
 type SteadyStateCheck struct {

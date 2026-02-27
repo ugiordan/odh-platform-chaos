@@ -20,8 +20,8 @@ func TestParseFaultConfigFromData(t *testing.T) {
 	cfg, err := ParseFaultConfigFromData(data)
 	require.NoError(t, err)
 	assert.True(t, cfg.Active)
-	assert.Equal(t, 0.5, cfg.Faults["get"].ErrorRate)
-	assert.Equal(t, "timeout", cfg.Faults["get"].Error)
+	assert.Equal(t, 0.5, cfg.Faults[OpGet].ErrorRate)
+	assert.Equal(t, "timeout", cfg.Faults[OpGet].Error)
 }
 
 func TestParseFaultConfigEmpty(t *testing.T) {

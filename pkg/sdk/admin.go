@@ -17,6 +17,10 @@ func NewAdminHandler(cfg *FaultConfig) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/chaos/faultpoints", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		if cfg == nil {
 			json.NewEncoder(w).Encode([]string{}) //nolint:errcheck
@@ -35,7 +39,7 @@ func NewAdminHandler(cfg *FaultConfig) http.Handler {
 		points := make([]faultPoint, 0, len(cfg.Faults))
 		for name, spec := range cfg.Faults {
 			points = append(points, faultPoint{
-				Name:      name,
+				Name:      string(name),
 				Active:    cfg.Active,
 				ErrorRate: spec.ErrorRate,
 				Error:     spec.Error,
@@ -45,11 +49,19 @@ func NewAdminHandler(cfg *FaultConfig) http.Handler {
 	})
 
 	mux.HandleFunc("/chaos/health", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"}) //nolint:errcheck
 	})
 
 	mux.HandleFunc("/chaos/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		status := map[string]interface{}{
 			"active":     cfg != nil && cfg.IsActive(),

@@ -15,7 +15,7 @@ func NewForTest(t *testing.T, component string) *TestChaos {
 		component: component,
 		config: &FaultConfig{
 			Active: true,
-			Faults: make(map[string]FaultSpec),
+			Faults: make(map[Operation]FaultSpec),
 		},
 	}
 	t.Cleanup(func() {
@@ -28,14 +28,14 @@ func NewForTest(t *testing.T, component string) *TestChaos {
 }
 
 // Activate enables fault injection for the given operation.
-func (tc *TestChaos) Activate(operation string, spec FaultSpec) {
+func (tc *TestChaos) Activate(operation Operation, spec FaultSpec) {
 	tc.config.mu.Lock()
 	defer tc.config.mu.Unlock()
 	tc.config.Faults[operation] = spec
 }
 
 // Deactivate disables fault injection for the given operation.
-func (tc *TestChaos) Deactivate(operation string) {
+func (tc *TestChaos) Deactivate(operation Operation) {
 	tc.config.mu.Lock()
 	defer tc.config.mu.Unlock()
 	delete(tc.config.Faults, operation)

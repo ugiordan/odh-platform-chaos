@@ -2,9 +2,11 @@ package injection
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	v1alpha1 "github.com/opendatahub-io/odh-platform-chaos/api/v1alpha1"
+	"github.com/opendatahub-io/odh-platform-chaos/pkg/safety"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -214,6 +216,96 @@ func TestCRDMutationInjectAndCleanup(t *testing.T) {
 	assert.Equal(t, "keep-me", restoredSpec["other"])
 	// Operator's reconciled field should still be there (merge patch doesn't remove other fields)
 	assert.Equal(t, "operator-was-here", restoredSpec["reconciledField"])
+}
+
+func TestCRDMutationInjectStoresRollbackAnnotation(t *testing.T) {
+	scheme := runtime.NewScheme()
+	gvk := schema.GroupVersionKind{Group: "test.example.com", Version: "v1", Kind: "TestResource"}
+	scheme.AddKnownTypeWithName(gvk, &unstructured.Unstructured{})
+	scheme.AddKnownTypeWithName(
+		schema.GroupVersionKind{Group: "test.example.com", Version: "v1", Kind: "TestResourceList"},
+		&unstructured.UnstructuredList{},
+	)
+
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(gvk)
+	obj.SetName("annotated-resource")
+	obj.SetNamespace("test-ns")
+	obj.Object["spec"] = map[string]interface{}{
+		"replicas": int64(5),
+	}
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(obj).
+		Build()
+
+	injector := NewCRDMutationInjector(fakeClient)
+	ctx := context.Background()
+
+	spec := v1alpha1.InjectionSpec{
+		Type: v1alpha1.CRDMutation,
+		Parameters: map[string]string{
+			"apiVersion": "test.example.com/v1",
+			"kind":       "TestResource",
+			"name":       "annotated-resource",
+			"field":      "replicas",
+			"value":      "0",
+		},
+	}
+
+	// Inject
+	cleanup, _, err := injector.Inject(ctx, spec, "test-ns")
+	require.NoError(t, err)
+
+	// Verify rollback annotation is present
+	modified := &unstructured.Unstructured{}
+	modified.SetGroupVersionKind(gvk)
+	require.NoError(t, fakeClient.Get(ctx, client_key("annotated-resource", "test-ns"), modified))
+
+	annotations := modified.GetAnnotations()
+	require.NotNil(t, annotations)
+	rollbackJSON, ok := annotations[safety.RollbackAnnotationKey]
+	require.True(t, ok, "rollback annotation should be present after injection")
+
+	var rollbackData map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(rollbackJSON), &rollbackData))
+	assert.Equal(t, "test.example.com/v1", rollbackData["apiVersion"])
+	assert.Equal(t, "TestResource", rollbackData["kind"])
+	assert.Equal(t, "replicas", rollbackData["field"])
+	// originalValue is stored as a float64 from JSON unmarshaling of int64
+	assert.Equal(t, float64(5), rollbackData["originalValue"])
+
+	// Verify chaos labels
+	labels := modified.GetLabels()
+	assert.Equal(t, safety.ManagedByValue, labels[safety.ManagedByLabel])
+	assert.Equal(t, string(v1alpha1.CRDMutation), labels[safety.ChaosTypeLabel])
+
+	// Cleanup should remove annotation and labels
+	require.NoError(t, cleanup(ctx))
+
+	restored := &unstructured.Unstructured{}
+	restored.SetGroupVersionKind(gvk)
+	require.NoError(t, fakeClient.Get(ctx, client_key("annotated-resource", "test-ns"), restored))
+
+	restoredAnnotations := restored.GetAnnotations()
+	if restoredAnnotations != nil {
+		_, hasAnnotation := restoredAnnotations[safety.RollbackAnnotationKey]
+		assert.False(t, hasAnnotation, "rollback annotation should be removed after cleanup")
+	}
+
+	restoredLabels := restored.GetLabels()
+	if restoredLabels != nil {
+		_, hasManagedBy := restoredLabels[safety.ManagedByLabel]
+		assert.False(t, hasManagedBy, "managed-by label should be removed after cleanup")
+
+		_, hasChaosType := restoredLabels[safety.ChaosTypeLabel]
+		assert.False(t, hasChaosType, "chaos-type label should be removed after cleanup")
+	}
+
+	// Verify value was restored
+	restoredSpec, _, _ := unstructured.NestedMap(restored.Object, "spec")
+	assert.Equal(t, int64(5), restoredSpec["replicas"])
 }
 
 // client_key is a helper to create a NamespacedName for client.Get.

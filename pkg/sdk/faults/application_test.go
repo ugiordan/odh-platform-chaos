@@ -37,16 +37,16 @@ func TestSkipConfigZeroRate(t *testing.T) {
 	assert.Equal(t, "reconciliation skipped by chaos", spec.Error)
 }
 
-func TestPanicConfig(t *testing.T) {
-	spec := PanicConfig("test crash", 0.1)
+func TestSimulatedPanicConfig(t *testing.T) {
+	spec := SimulatedPanicConfig("test crash", 0.1)
 
 	assert.Equal(t, time.Duration(0), spec.Delay)
 	assert.Equal(t, 0.1, spec.ErrorRate)
 	assert.Equal(t, "panic: test crash", spec.Error)
 }
 
-func TestPanicConfigMessage(t *testing.T) {
-	spec := PanicConfig("out of memory", 1.0)
+func TestSimulatedPanicConfigMessage(t *testing.T) {
+	spec := SimulatedPanicConfig("out of memory", 1.0)
 
 	assert.Equal(t, 1.0, spec.ErrorRate)
 	assert.Equal(t, "panic: out of memory", spec.Error)

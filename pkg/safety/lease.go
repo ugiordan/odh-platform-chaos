@@ -36,9 +36,10 @@ func NewLeaseExperimentLock(c client.Client, namespace string) *LeaseExperimentL
 }
 
 // Acquire attempts to create a Lease for the given operator. If a Lease already
-// exists, it checks whether it has expired. Expired leases are deleted and
-// re-acquired. If the lease is still valid, an error is returned containing
-// the holding experiment name.
+// exists, it checks whether it has expired. Expired leases are reclaimed via
+// an in-place Update (using Kubernetes optimistic concurrency / resourceVersion)
+// to avoid TOCTOU races. If the lease is still valid, an error is returned
+// containing the holding experiment name.
 func (l *LeaseExperimentLock) Acquire(ctx context.Context, operator string, experimentName string) error {
 	leaseName := fmt.Sprintf("odh-chaos-lock-%s", operator)
 	leaseDuration := DefaultLeaseDurationSeconds
@@ -66,39 +67,29 @@ func (l *LeaseExperimentLock) Acquire(ctx context.Context, operator string, expe
 			return fmt.Errorf("checking existing lease: %w", getErr)
 		}
 
-		// If the existing lease has expired, delete it and retry creation.
+		// If the existing lease has expired, reclaim it via Update (optimistic
+		// concurrency via resourceVersion). This avoids a TOCTOU race where
+		// two callers both delete then create.
 		if l.isExpired(existing) {
 			holder := ""
 			if existing.Spec.HolderIdentity != nil {
 				holder = *existing.Spec.HolderIdentity
 			}
-			l.logger.Info("deleting expired lease",
+			l.logger.Info("reclaiming expired lease",
 				"lease", leaseName,
 				"holder", holder,
 				"operator", operator,
 			)
 
-			if delErr := l.client.Delete(ctx, existing); delErr != nil {
-				return fmt.Errorf("deleting expired lease: %w", delErr)
-			}
+			// Update the existing lease in-place. The resourceVersion on
+			// the existing object provides optimistic concurrency -- if
+			// another caller updates first, this one gets a conflict error.
+			reclaimNow := metav1.NewMicroTime(time.Now())
+			existing.Spec.HolderIdentity = &experimentName
+			existing.Spec.LeaseDurationSeconds = &leaseDuration
+			existing.Spec.AcquireTime = &reclaimNow
 
-			// Retry creation with a fresh lease object.
-			retryNow := metav1.NewMicroTime(time.Now())
-			retryLease := &coordinationv1.Lease{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      leaseName,
-					Namespace: l.namespace,
-					Labels: map[string]string{
-						"app.kubernetes.io/managed-by": "odh-chaos",
-					},
-				},
-				Spec: coordinationv1.LeaseSpec{
-					HolderIdentity:       &experimentName,
-					LeaseDurationSeconds: &leaseDuration,
-					AcquireTime:          &retryNow,
-				},
-			}
-			return l.client.Create(ctx, retryLease)
+			return l.client.Update(ctx, existing)
 		}
 
 		holder := ""

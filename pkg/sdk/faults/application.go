@@ -18,8 +18,9 @@ func SkipConfig(rate float64) sdk.FaultSpec {
 	}
 }
 
-// PanicConfig creates a fault that triggers a panic for testing recovery.
-func PanicConfig(msg string, rate float64) sdk.FaultSpec {
+// SimulatedPanicConfig creates a fault that returns an error with a "panic:" prefix.
+// It does not actually call panic(); it simulates a panic-like failure via error return.
+func SimulatedPanicConfig(msg string, rate float64) sdk.FaultSpec {
 	return sdk.FaultSpec{
 		ErrorRate: rate,
 		Error:     "panic: " + msg,

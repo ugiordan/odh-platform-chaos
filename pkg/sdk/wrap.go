@@ -34,7 +34,7 @@ func WrapReconciler(inner reconcile.Reconciler, opts ...Option) reconcile.Reconc
 
 func (cr *chaosReconciler) Reconcile(ctx context.Context, req reconcile.Request) (ctrl.Result, error) {
 	if cr.faults != nil {
-		if err := cr.faults.MaybeInject("reconcile"); err != nil {
+		if err := cr.faults.MaybeInject(OpReconcile); err != nil {
 			return ctrl.Result{}, err
 		}
 	}

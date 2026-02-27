@@ -199,6 +199,9 @@ func (o *Orchestrator) Run(ctx context.Context, exp *v1alpha1.ChaosExperiment) (
 			if cleanErr := cleanup(cleanupCtx); cleanErr != nil {
 				o.logger.Warn("cleanup warning", "error", cleanErr)
 				result.CleanupError = cleanErr.Error()
+				if result.Report != nil {
+					result.Report.CleanupError = cleanErr.Error()
+				}
 			}
 		}
 	}()

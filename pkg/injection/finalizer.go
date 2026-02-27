@@ -2,9 +2,11 @@ package injection
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	v1alpha1 "github.com/opendatahub-io/odh-platform-chaos/api/v1alpha1"
+	"github.com/opendatahub-io/odh-platform-chaos/pkg/safety"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -78,6 +80,32 @@ func (f *FinalizerBlockInjector) Inject(ctx context.Context, spec v1alpha1.Injec
 
 	// Add the finalizer using controller-runtime helper
 	if controllerutil.AddFinalizer(obj, finalizerName) {
+		// Store rollback annotation for crash-safe recovery
+		rollbackData := map[string]string{
+			"finalizer": finalizerName,
+		}
+		rollbackJSON, err := json.Marshal(rollbackData)
+		if err != nil {
+			return nil, nil, fmt.Errorf("serializing rollback data for %s/%s: %w", kind, name, err)
+		}
+
+		annotations := obj.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations[safety.RollbackAnnotationKey] = string(rollbackJSON)
+		obj.SetAnnotations(annotations)
+
+		// Add chaos labels
+		labels := obj.GetLabels()
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		for k, v := range safety.ChaosLabels(string(v1alpha1.FinalizerBlock)) {
+			labels[k] = v
+		}
+		obj.SetLabels(labels)
+
 		if err := f.client.Update(ctx, obj); err != nil {
 			return nil, nil, fmt.Errorf("adding finalizer to %s/%s: %w", kind, name, err)
 		}
@@ -93,7 +121,7 @@ func (f *FinalizerBlockInjector) Inject(ctx context.Context, spec v1alpha1.Injec
 			}),
 	}
 
-	// Cleanup removes the finalizer
+	// Cleanup removes the finalizer, rollback annotation, and chaos labels
 	cleanup := func(ctx context.Context) error {
 		current := &unstructured.Unstructured{}
 		current.SetAPIVersion(apiVersion)
@@ -103,7 +131,31 @@ func (f *FinalizerBlockInjector) Inject(ctx context.Context, spec v1alpha1.Injec
 			return fmt.Errorf("re-fetching %s/%s for cleanup: %w", kind, name, err)
 		}
 
-		if controllerutil.RemoveFinalizer(current, finalizerName) {
+		changed := controllerutil.RemoveFinalizer(current, finalizerName)
+
+		// Remove rollback annotation
+		annotations := current.GetAnnotations()
+		if annotations != nil {
+			if _, ok := annotations[safety.RollbackAnnotationKey]; ok {
+				delete(annotations, safety.RollbackAnnotationKey)
+				current.SetAnnotations(annotations)
+				changed = true
+			}
+		}
+
+		// Remove chaos labels
+		labels := current.GetLabels()
+		if labels != nil {
+			for k := range safety.ChaosLabels(string(v1alpha1.FinalizerBlock)) {
+				if _, ok := labels[k]; ok {
+					delete(labels, k)
+					changed = true
+				}
+			}
+			current.SetLabels(labels)
+		}
+
+		if changed {
 			if err := f.client.Update(ctx, current); err != nil {
 				return fmt.Errorf("removing finalizer from %s/%s: %w", kind, name, err)
 			}

@@ -199,6 +199,10 @@ func runSingleExperiment(parentCtx context.Context, file string, deps *orchestra
 
 	r.orchResult = result
 
+	if result.CleanupError != "" {
+		fmt.Fprintf(os.Stderr, "WARNING: cleanup error in %s: %s\n", exp.Metadata.Name, result.CleanupError)
+	}
+
 	switch result.Verdict {
 	case v1alpha1.Resilient:
 		r.verdict = fmt.Sprintf("PASS  %s (%s)", exp.Metadata.Name, result.Verdict)
@@ -288,6 +292,10 @@ func suiteResultToReport(r suiteResult) reporter.ExperimentReport {
 			Verdict:    v1alpha1.Inconclusive,
 			Confidence: errMsg,
 		}
+	}
+
+	if r.orchResult != nil && r.orchResult.CleanupError != "" {
+		report.CleanupError = r.orchResult.CleanupError
 	}
 
 	return report

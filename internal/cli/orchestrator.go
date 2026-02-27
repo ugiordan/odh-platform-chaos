@@ -120,4 +120,7 @@ func printExperimentResult(result *orchestrator.ExperimentResult) {
 			}
 		}
 	}
+	if result.CleanupError != "" {
+		fmt.Fprintf(os.Stderr, "  Cleanup Error: %s\n", result.CleanupError)
+	}
 }

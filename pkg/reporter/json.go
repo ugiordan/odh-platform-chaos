@@ -12,12 +12,13 @@ import (
 
 // ExperimentReport is the top-level report for a single chaos experiment.
 type ExperimentReport struct {
-	Experiment  string                     `json:"experiment"`
-	Timestamp   time.Time                  `json:"timestamp"`
-	Target      TargetReport               `json:"target"`
-	Injection   InjectionReport            `json:"injection"`
-	Evaluation  evaluator.EvaluationResult `json:"evaluation"`
-	SteadyState SteadyStateReport          `json:"steadyState,omitempty"`
+	Experiment   string                     `json:"experiment"`
+	Timestamp    time.Time                  `json:"timestamp"`
+	Target       TargetReport               `json:"target"`
+	Injection    InjectionReport            `json:"injection"`
+	Evaluation   evaluator.EvaluationResult `json:"evaluation"`
+	SteadyState  SteadyStateReport          `json:"steadyState,omitempty"`
+	CleanupError string                     `json:"cleanupError,omitempty"`
 }
 
 // TargetReport describes the target of a chaos experiment.

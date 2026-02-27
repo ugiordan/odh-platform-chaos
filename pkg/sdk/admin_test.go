@@ -13,9 +13,9 @@ import (
 func TestAdminEndpointFaultPoints(t *testing.T) {
 	cfg := &FaultConfig{
 		Active: true,
-		Faults: map[string]FaultSpec{
-			"get":    {ErrorRate: 0.5, Error: "timeout"},
-			"create": {ErrorRate: 1.0, Error: "forbidden"},
+		Faults: map[Operation]FaultSpec{
+			OpGet:    {ErrorRate: 0.5, Error: "timeout"},
+			OpCreate: {ErrorRate: 1.0, Error: "forbidden"},
 		},
 	}
 
@@ -34,8 +34,8 @@ func TestAdminEndpointFaultPoints(t *testing.T) {
 func TestAdminEndpointStatus(t *testing.T) {
 	cfg := &FaultConfig{
 		Active: true,
-		Faults: map[string]FaultSpec{
-			"get": {ErrorRate: 0.5, Error: "timeout"},
+		Faults: map[Operation]FaultSpec{
+			OpGet: {ErrorRate: 0.5, Error: "timeout"},
 		},
 	}
 
@@ -65,6 +65,21 @@ func TestAdminEndpointHealth(t *testing.T) {
 	var health map[string]string
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &health))
 	assert.Equal(t, "ok", health["status"])
+}
+
+func TestAdminEndpointRejectsNonGET(t *testing.T) {
+	handler := NewAdminHandler(nil)
+	methods := []string{http.MethodPost, http.MethodPut, http.MethodDelete}
+	paths := []string{"/chaos/health", "/chaos/status", "/chaos/faultpoints"}
+	for _, path := range paths {
+		for _, method := range methods {
+			req := httptest.NewRequest(method, path, nil)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+			assert.Equal(t, http.StatusMethodNotAllowed, w.Code,
+				"%s %s should return 405", method, path)
+		}
+	}
 }
 
 func TestAdminEndpointNilConfig(t *testing.T) {

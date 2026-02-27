@@ -46,6 +46,56 @@ func TestJSONReporterWrite(t *testing.T) {
 	assert.Equal(t, "Resilient", parsed["evaluation"].(map[string]interface{})["verdict"])
 }
 
+func TestJSONReporterCleanupErrorMarshal(t *testing.T) {
+	var buf bytes.Buffer
+	r := NewJSONReporter(&buf)
+
+	report := ExperimentReport{
+		Experiment: "cleanup-error-test",
+		Timestamp:  time.Date(2026, 2, 27, 10, 0, 0, 0, time.UTC),
+		Target: TargetReport{
+			Operator:  "test-operator",
+			Component: "dashboard",
+		},
+		Evaluation: evaluator.EvaluationResult{
+			Verdict: v1alpha1.Resilient,
+		},
+		CleanupError: "failed to delete test pod",
+	}
+
+	err := r.Write(report)
+	require.NoError(t, err)
+
+	var parsed map[string]interface{}
+	err = json.Unmarshal(buf.Bytes(), &parsed)
+	require.NoError(t, err)
+
+	assert.Equal(t, "failed to delete test pod", parsed["cleanupError"])
+}
+
+func TestJSONReporterCleanupErrorOmittedWhenEmpty(t *testing.T) {
+	var buf bytes.Buffer
+	r := NewJSONReporter(&buf)
+
+	report := ExperimentReport{
+		Experiment: "no-cleanup-error-test",
+		Timestamp:  time.Date(2026, 2, 27, 10, 0, 0, 0, time.UTC),
+		Evaluation: evaluator.EvaluationResult{
+			Verdict: v1alpha1.Resilient,
+		},
+	}
+
+	err := r.Write(report)
+	require.NoError(t, err)
+
+	var parsed map[string]interface{}
+	err = json.Unmarshal(buf.Bytes(), &parsed)
+	require.NoError(t, err)
+
+	_, exists := parsed["cleanupError"]
+	assert.False(t, exists, "cleanupError should be omitted when empty")
+}
+
 func TestJSONReporterToFile(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/report.json"

@@ -33,6 +33,7 @@ type junitTestCase struct {
 	Time      string        `xml:"time,attr"`
 	Failure   *junitFailure `xml:"failure,omitempty"`
 	Skipped   *junitSkipped `xml:"skipped,omitempty"`
+	SystemErr string        `xml:"system-err,omitempty"`
 }
 
 type junitFailure struct {
@@ -83,6 +84,10 @@ func (r *JUnitReporter) WriteSuite(name string, reports []ExperimentReport) erro
 			tc.Skipped = &junitSkipped{
 				Message: "Could not establish baseline: " + report.Evaluation.Confidence,
 			}
+		}
+
+		if report.CleanupError != "" {
+			tc.SystemErr = report.CleanupError
 		}
 
 		suite.Cases = append(suite.Cases, tc)

@@ -202,6 +202,8 @@ func TestOrchestratorCleanupFailureSurfacedInResult(t *testing.T) {
 	assert.Equal(t, v1alpha1.PhaseComplete, result.Phase, "experiment should complete despite cleanup failure")
 	assert.True(t, inj.cleanupCalled, "cleanup should have been called")
 	assert.Contains(t, result.CleanupError, "cleanup: failed to restore pod", "cleanup error should be surfaced in result")
+	require.NotNil(t, result.Report, "report should be present even when cleanup fails")
+	assert.Contains(t, result.Report.CleanupError, "cleanup: failed to restore pod", "cleanup error should be surfaced in report")
 }
 
 func TestOrchestratorInjectionError(t *testing.T) {
@@ -518,6 +520,39 @@ func TestOrchestratorDefaultLoggerVerbose(t *testing.T) {
 
 	// The orchestrator should have a non-nil logger
 	assert.NotNil(t, orch.logger, "default logger should be created when Logger is nil")
+}
+
+// alwaysLockedLock is a mock ExperimentLock that always returns an error from
+// Acquire, simulating lock contention (another experiment already holds the lock).
+type alwaysLockedLock struct{}
+
+func (l *alwaysLockedLock) Acquire(_ context.Context, operator, experiment string) error {
+	return fmt.Errorf("operator %q is locked by experiment %q", operator, "other-experiment")
+}
+
+func (l *alwaysLockedLock) Release(_ string) {}
+
+func TestOrchestratorLockContention(t *testing.T) {
+	obs := &mockObserver{result: &v1alpha1.CheckResult{Passed: true, ChecksRun: 1, ChecksPassed: 1, Timestamp: time.Now()}}
+	inj := &mockInjector{}
+
+	registry := injection.NewRegistry()
+	registry.Register(v1alpha1.PodKill, inj)
+
+	orch := New(OrchestratorConfig{
+		Registry:  registry,
+		Observer:  obs,
+		Evaluator: evaluator.New(10),
+		Lock:      &alwaysLockedLock{},
+		Verbose:   false,
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	result, err := orch.Run(context.Background(), newTestExperiment())
+	assert.Error(t, err)
+	assert.Equal(t, v1alpha1.PhaseAborted, result.Phase)
+	assert.Contains(t, result.Error, "lock")
+	assert.False(t, inj.cleanupCalled, "cleanup should not be called when lock acquisition fails")
 }
 
 func TestOrchestratorDefaultLoggerNonVerbose(t *testing.T) {

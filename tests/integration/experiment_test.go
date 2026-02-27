@@ -215,8 +215,8 @@ func TestChaosClientIntegration(t *testing.T) {
 
 	// Test 3: ChaosClient with active faults
 	faults.Active = true
-	faults.Faults = map[string]sdk.FaultSpec{
-		"get": {ErrorRate: 1.0, Error: "chaos: api server error"},
+	faults.Faults = map[sdk.Operation]sdk.FaultSpec{
+		sdk.OpGet: {ErrorRate: 1.0, Error: "chaos: api server error"},
 	}
 	cc3 := sdk.NewChaosClient(inner, faults)
 	obj3 := &corev1.ConfigMap{}
@@ -247,8 +247,8 @@ func TestWrapReconcilerIntegration(t *testing.T) {
 	called = false
 	faults := &sdk.FaultConfig{
 		Active: true,
-		Faults: map[string]sdk.FaultSpec{
-			"reconcile": {ErrorRate: 1.0, Error: "chaos: reconcile failed"},
+		Faults: map[sdk.Operation]sdk.FaultSpec{
+			sdk.OpReconcile: {ErrorRate: 1.0, Error: "chaos: reconcile failed"},
 		},
 	}
 	wrapped2 := sdk.WrapReconciler(inner, sdk.WithFaultConfig(faults))
@@ -264,13 +264,13 @@ func TestTestChaosHelperIntegration(t *testing.T) {
 
 	// Test the test helper
 	ch := sdk.NewForTest(t, "model-registry")
-	ch.Activate("get", sdk.FaultSpec{ErrorRate: 1.0, Error: "test error"})
+	ch.Activate(sdk.OpGet, sdk.FaultSpec{ErrorRate: 1.0, Error: "test error"})
 
-	err := ch.Config().MaybeInject("get")
+	err := ch.Config().MaybeInject(sdk.OpGet)
 	assert.Error(t, err)
 	assert.Equal(t, "test error", err.Error())
 
-	ch.Deactivate("get")
-	err = ch.Config().MaybeInject("get")
+	ch.Deactivate(sdk.OpGet)
+	err = ch.Config().MaybeInject(sdk.OpGet)
 	assert.Nil(t, err)
 }

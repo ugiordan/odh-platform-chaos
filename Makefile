@@ -8,7 +8,7 @@ build:
 	go build -o bin/$(BINARY) $(CMD)
 
 test:
-	go test ./... -v -count=1
+	go test -race ./... -v -count=1
 
 test-short:
 	go test ./... -short -count=1

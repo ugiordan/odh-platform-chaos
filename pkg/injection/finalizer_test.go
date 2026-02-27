@@ -2,9 +2,11 @@ package injection
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	v1alpha1 "github.com/opendatahub-io/odh-platform-chaos/api/v1alpha1"
+	"github.com/opendatahub-io/odh-platform-chaos/pkg/safety"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -224,5 +226,69 @@ func TestFinalizerBlockPreservesExistingFinalizers(t *testing.T) {
 	require.NoError(t, k8sClient.Get(context.Background(),
 		client.ObjectKey{Name: "existing-finalizers", Namespace: "default"}, restored))
 	assert.Contains(t, restored.Finalizers, "existing.io/finalizer")
+	assert.NotContains(t, restored.Finalizers, "chaos.opendatahub.io/block")
+}
+
+func TestFinalizerBlockInjectStoresRollbackAnnotation(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "rollback-test", Namespace: "default"},
+	}
+
+	k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cm).Build()
+	injector := NewFinalizerBlockInjector(k8sClient)
+
+	spec := v1alpha1.InjectionSpec{
+		Type: v1alpha1.FinalizerBlock,
+		Parameters: map[string]string{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"name":       "rollback-test",
+			"finalizer":  "chaos.opendatahub.io/block",
+		},
+	}
+
+	ctx := context.Background()
+
+	// Inject
+	cleanup, _, err := injector.Inject(ctx, spec, "default")
+	require.NoError(t, err)
+
+	// Verify rollback annotation is present after injection
+	modified := &corev1.ConfigMap{}
+	require.NoError(t, k8sClient.Get(ctx,
+		client.ObjectKey{Name: "rollback-test", Namespace: "default"}, modified))
+
+	rollbackJSON, ok := modified.Annotations[safety.RollbackAnnotationKey]
+	require.True(t, ok, "rollback annotation should be present after injection")
+
+	var rollbackData map[string]string
+	require.NoError(t, json.Unmarshal([]byte(rollbackJSON), &rollbackData))
+	assert.Equal(t, "chaos.opendatahub.io/block", rollbackData["finalizer"],
+		"rollback data should contain the finalizer name")
+
+	// Verify chaos labels are present
+	assert.Equal(t, safety.ManagedByValue, modified.Labels[safety.ManagedByLabel])
+	assert.Equal(t, string(v1alpha1.FinalizerBlock), modified.Labels[safety.ChaosTypeLabel])
+
+	// Cleanup should remove the annotation and labels
+	require.NoError(t, cleanup(ctx))
+
+	restored := &corev1.ConfigMap{}
+	require.NoError(t, k8sClient.Get(ctx,
+		client.ObjectKey{Name: "rollback-test", Namespace: "default"}, restored))
+
+	_, hasAnnotation := restored.Annotations[safety.RollbackAnnotationKey]
+	assert.False(t, hasAnnotation, "rollback annotation should be removed after cleanup")
+
+	_, hasManagedBy := restored.Labels[safety.ManagedByLabel]
+	assert.False(t, hasManagedBy, "managed-by label should be removed after cleanup")
+
+	_, hasChaosType := restored.Labels[safety.ChaosTypeLabel]
+	assert.False(t, hasChaosType, "chaos-type label should be removed after cleanup")
+
+	// Verify finalizer was also removed
 	assert.NotContains(t, restored.Finalizers, "chaos.opendatahub.io/block")
 }

@@ -10,9 +10,9 @@ func TestNewForTest(t *testing.T) {
 	ch := NewForTest(t, "model-registry")
 	assert.NotNil(t, ch)
 
-	ch.Activate("get", FaultSpec{ErrorRate: 1.0, Error: "test error"})
+	ch.Activate(OpGet, FaultSpec{ErrorRate: 1.0, Error: "test error"})
 
-	err := ch.Config().MaybeInject("get")
+	err := ch.Config().MaybeInject(OpGet)
 	assert.Error(t, err)
 	assert.Equal(t, "test error", err.Error())
 }
@@ -21,7 +21,7 @@ func TestNewForTestAutoCleanup(t *testing.T) {
 	var cfg *FaultConfig
 	t.Run("inner", func(t *testing.T) {
 		ch := NewForTest(t, "model-registry")
-		ch.Activate("get", FaultSpec{ErrorRate: 1.0, Error: "test error"})
+		ch.Activate(OpGet, FaultSpec{ErrorRate: 1.0, Error: "test error"})
 		cfg = ch.Config()
 		// After this subtest, t.Cleanup should deactivate
 	})
@@ -31,10 +31,10 @@ func TestNewForTestAutoCleanup(t *testing.T) {
 
 func TestNewForTestDeactivate(t *testing.T) {
 	ch := NewForTest(t, "test-component")
-	ch.Activate("get", FaultSpec{ErrorRate: 1.0, Error: "error"})
-	ch.Deactivate("get")
+	ch.Activate(OpGet, FaultSpec{ErrorRate: 1.0, Error: "error"})
+	ch.Deactivate(OpGet)
 
-	err := ch.Config().MaybeInject("get")
+	err := ch.Config().MaybeInject(OpGet)
 	assert.Nil(t, err)
 }
 

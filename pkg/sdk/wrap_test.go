@@ -34,8 +34,8 @@ func TestWrapReconcilerWithFaults(t *testing.T) {
 	inner := &fakeReconciler{}
 	faults := &FaultConfig{
 		Active: true,
-		Faults: map[string]FaultSpec{
-			"reconcile": {ErrorRate: 1.0, Error: "reconcile chaos"},
+		Faults: map[Operation]FaultSpec{
+			OpReconcile: {ErrorRate: 1.0, Error: "reconcile chaos"},
 		},
 	}
 	wrapped := WrapReconciler(inner, WithFaultConfig(faults))
@@ -50,8 +50,8 @@ func TestWrapReconcilerInactiveFaults(t *testing.T) {
 	inner := &fakeReconciler{}
 	faults := &FaultConfig{
 		Active: false,
-		Faults: map[string]FaultSpec{
-			"reconcile": {ErrorRate: 1.0, Error: "should not fire"},
+		Faults: map[Operation]FaultSpec{
+			OpReconcile: {ErrorRate: 1.0, Error: "should not fire"},
 		},
 	}
 	wrapped := WrapReconciler(inner, WithFaultConfig(faults))

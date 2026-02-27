@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	v1alpha1 "github.com/opendatahub-io/odh-platform-chaos/api/v1alpha1"
+	"github.com/opendatahub-io/odh-platform-chaos/pkg/safety"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,8 +61,36 @@ func (m *CRDMutationInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 		originalValue = specMap[fieldName]
 	}
 
-	// Apply mutation via merge patch (use json.Marshal for safe serialization)
+	// Build rollback data for crash-safe recovery
+	rollbackInfo := map[string]interface{}{
+		"apiVersion":    spec.Parameters["apiVersion"],
+		"kind":          spec.Parameters["kind"],
+		"field":         fieldName,
+		"originalValue": originalValue,
+	}
+	rollbackJSON, err := json.Marshal(rollbackInfo)
+	if err != nil {
+		return nil, nil, fmt.Errorf("serializing rollback data for %s/%s: %w", spec.Parameters["kind"], spec.Parameters["name"], err)
+	}
+
+	// Build annotations map with rollback data
+	annotationsMap := map[string]interface{}{
+		safety.RollbackAnnotationKey: string(rollbackJSON),
+	}
+
+	// Build labels map with chaos labels
+	chaosLabels := safety.ChaosLabels(string(v1alpha1.CRDMutation))
+	labelsMap := make(map[string]interface{}, len(chaosLabels))
+	for k, v := range chaosLabels {
+		labelsMap[k] = v
+	}
+
+	// Apply mutation via merge patch including rollback annotation and chaos labels
 	patchMap := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": annotationsMap,
+			"labels":      labelsMap,
+		},
 		"spec": map[string]interface{}{
 			fieldName: spec.Parameters["value"],
 		},
@@ -86,19 +115,44 @@ func (m *CRDMutationInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 			}),
 	}
 
-	// Cleanup restores original field value using merge patch to avoid resourceVersion conflicts
+	// Cleanup restores original field value and removes rollback metadata
 	cleanup := func(ctx context.Context) error {
-		// Build a merge patch that restores just the mutated field
+		// Re-fetch the resource to get current state as patch target
+		current := &unstructured.Unstructured{}
+		current.SetAPIVersion(apiVersion)
+		current.SetKind(kind)
+		if err := m.client.Get(ctx, key, current); err != nil {
+			return fmt.Errorf("re-fetching resource for cleanup: %w", err)
+		}
+
+		// Build a merge patch that restores the mutated field and removes
+		// the rollback annotation and chaos labels. In merge patch, setting
+		// a key to null removes it.
+		restoreAnnotations := map[string]interface{}{
+			safety.RollbackAnnotationKey: nil,
+		}
+		restoreLabels := make(map[string]interface{})
+		for k := range chaosLabels {
+			restoreLabels[k] = nil
+		}
+
 		var restorePatchMap map[string]interface{}
 		if originalValue == nil {
-			// Field was not set before; set it to null to remove it via merge patch
 			restorePatchMap = map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": restoreAnnotations,
+					"labels":      restoreLabels,
+				},
 				"spec": map[string]interface{}{
 					fieldName: nil,
 				},
 			}
 		} else {
 			restorePatchMap = map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": restoreAnnotations,
+					"labels":      restoreLabels,
+				},
 				"spec": map[string]interface{}{
 					fieldName: originalValue,
 				},
@@ -107,14 +161,6 @@ func (m *CRDMutationInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 		restorePatch, err := json.Marshal(restorePatchMap)
 		if err != nil {
 			return fmt.Errorf("building restore patch: %w", err)
-		}
-
-		// Re-fetch the resource to get current state as patch target
-		current := &unstructured.Unstructured{}
-		current.SetAPIVersion(apiVersion)
-		current.SetKind(kind)
-		if err := m.client.Get(ctx, key, current); err != nil {
-			return fmt.Errorf("re-fetching resource for cleanup: %w", err)
 		}
 
 		return m.client.Patch(ctx, current, client.RawPatch(types.MergePatchType, restorePatch))

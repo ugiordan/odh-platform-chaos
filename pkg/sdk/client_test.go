@@ -41,8 +41,8 @@ func TestChaosClientFaultInjection(t *testing.T) {
 
 	faults := &FaultConfig{
 		Active: true,
-		Faults: map[string]FaultSpec{
-			"get": {ErrorRate: 1.0, Error: "api server error"},
+		Faults: map[Operation]FaultSpec{
+			OpGet: {ErrorRate: 1.0, Error: "api server error"},
 		},
 	}
 
@@ -70,8 +70,8 @@ func TestChaosClientInactiveFaultsPassthrough(t *testing.T) {
 
 	faults := &FaultConfig{
 		Active: false,
-		Faults: map[string]FaultSpec{
-			"get": {ErrorRate: 1.0, Error: "should not fire"},
+		Faults: map[Operation]FaultSpec{
+			OpGet: {ErrorRate: 1.0, Error: "should not fire"},
 		},
 	}
 
@@ -89,13 +89,13 @@ func TestChaosClientFaultInjectionOnAllOperations(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		faultKey string
+		faultKey Operation
 		errMsg   string
 		callFn   func(cc *ChaosClient) error
 	}{
 		{
 			name:     "list fault",
-			faultKey: "list",
+			faultKey: OpList,
 			errMsg:   "list chaos fault",
 			callFn: func(cc *ChaosClient) error {
 				return cc.List(context.Background(), &corev1.ConfigMapList{})
@@ -103,7 +103,7 @@ func TestChaosClientFaultInjectionOnAllOperations(t *testing.T) {
 		},
 		{
 			name:     "create fault",
-			faultKey: "create",
+			faultKey: OpCreate,
 			errMsg:   "create chaos fault",
 			callFn: func(cc *ChaosClient) error {
 				return cc.Create(context.Background(), &corev1.ConfigMap{
@@ -113,7 +113,7 @@ func TestChaosClientFaultInjectionOnAllOperations(t *testing.T) {
 		},
 		{
 			name:     "update fault",
-			faultKey: "update",
+			faultKey: OpUpdate,
 			errMsg:   "update chaos fault",
 			callFn: func(cc *ChaosClient) error {
 				return cc.Update(context.Background(), &corev1.ConfigMap{
@@ -123,7 +123,7 @@ func TestChaosClientFaultInjectionOnAllOperations(t *testing.T) {
 		},
 		{
 			name:     "delete fault",
-			faultKey: "delete",
+			faultKey: OpDelete,
 			errMsg:   "delete chaos fault",
 			callFn: func(cc *ChaosClient) error {
 				return cc.Delete(context.Background(), &corev1.ConfigMap{
@@ -133,7 +133,7 @@ func TestChaosClientFaultInjectionOnAllOperations(t *testing.T) {
 		},
 		{
 			name:     "patch fault",
-			faultKey: "patch",
+			faultKey: OpPatch,
 			errMsg:   "patch chaos fault",
 			callFn: func(cc *ChaosClient) error {
 				return cc.Patch(context.Background(), &corev1.ConfigMap{
@@ -155,7 +155,7 @@ func TestChaosClientFaultInjectionOnAllOperations(t *testing.T) {
 
 			faults := &FaultConfig{
 				Active: true,
-				Faults: map[string]FaultSpec{
+				Faults: map[Operation]FaultSpec{
 					tt.faultKey: {ErrorRate: 1.0, Error: tt.errMsg},
 				},
 			}
