@@ -1,0 +1,43 @@
+apiVersion: chaos.opendatahub.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: dashboard-pod-kill-recovery
+  labels:
+    component: dashboard
+    severity: standard
+spec:
+  target:
+    operator: opendatahub-operator
+    component: dashboard
+    resource: Deployment/odh-dashboard
+  hypothesis:
+    description: "Dashboard recovers from pod termination within 60s"
+    expectedBehavior: "Deployment controller recreates pod, all replicas ready"
+    recoveryTimeout: "60s"
+  injection:
+    type: PodKill
+    parameters:
+      signal: "SIGKILL"
+      labelSelector: "app.kubernetes.io/part-of=dashboard"
+    count: 1
+    duration: "0s"
+    ttl: "300s"
+  observation:
+    interval: "5s"
+    duration: "120s"
+    trackReconcileCycles: true
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-dashboard
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  blastRadius:
+    maxPodsAffected: 1
+    maxConcurrentFaults: 1
+    allowedNamespaces:
+      - opendatahub
+    dryRun: false

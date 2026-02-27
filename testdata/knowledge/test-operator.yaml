@@ -1,0 +1,47 @@
+operator:
+  name: test-operator
+  namespace: test-ns
+  repository: https://github.com/example/test-operator
+
+components:
+  - name: dashboard
+    controller: DataScienceCluster
+    managedResources:
+      - apiVersion: apps/v1
+        kind: Deployment
+        name: test-dashboard
+        namespace: test-ns
+        labels:
+          app: dashboard
+        ownerRef: Dashboard
+        expectedSpec:
+          replicas: 2
+      - apiVersion: v1
+        kind: Service
+        name: test-dashboard
+        namespace: test-ns
+        ownerRef: Dashboard
+    dependencies: []
+    steadyState:
+      checks:
+        - type: conditionTrue
+          apiVersion: apps/v1
+          kind: Deployment
+          name: test-dashboard
+          conditionType: Available
+      timeout: "60s"
+
+  - name: model-controller
+    controller: DataScienceCluster
+    managedResources:
+      - apiVersion: apps/v1
+        kind: Deployment
+        name: test-model-controller
+        namespace: test-ns
+        ownerRef: Kserve
+    dependencies:
+      - kserve
+
+recovery:
+  reconcileTimeout: "300s"
+  maxReconcileCycles: 10

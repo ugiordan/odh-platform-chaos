@@ -1,0 +1,76 @@
+package reporter
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"time"
+
+	"github.com/opendatahub-io/odh-platform-chaos/pkg/evaluator"
+)
+
+// ExperimentReport is the top-level report for a single chaos experiment.
+type ExperimentReport struct {
+	Experiment  string                     `json:"experiment"`
+	Timestamp   time.Time                  `json:"timestamp"`
+	Target      TargetReport               `json:"target"`
+	Injection   InjectionReport            `json:"injection"`
+	Evaluation  evaluator.EvaluationResult `json:"evaluation"`
+	SteadyState SteadyStateReport          `json:"steadyState,omitempty"`
+}
+
+// TargetReport describes the target of a chaos experiment.
+type TargetReport struct {
+	Operator  string `json:"operator"`
+	Component string `json:"component"`
+	Resource  string `json:"resource,omitempty"`
+}
+
+// InjectionReport describes the fault injection performed.
+type InjectionReport struct {
+	Type      string            `json:"type"`
+	Targets   []string          `json:"targets,omitempty"`
+	Timestamp time.Time         `json:"timestamp"`
+	Details   map[string]string `json:"details,omitempty"`
+}
+
+// SteadyStateReport captures pre- and post-injection steady state.
+type SteadyStateReport struct {
+	Pre  interface{} `json:"pre,omitempty"`
+	Post interface{} `json:"post,omitempty"`
+}
+
+// JSONReporter writes experiment reports as JSON.
+type JSONReporter struct {
+	writer io.Writer
+}
+
+// NewJSONReporter creates a JSONReporter that writes to the given writer.
+func NewJSONReporter(w io.Writer) *JSONReporter {
+	return &JSONReporter{writer: w}
+}
+
+// NewJSONFileReporter creates a JSONReporter that writes to a file at the given path.
+func NewJSONFileReporter(path string) (*JSONReporter, error) {
+	f, err := os.Create(path)
+	if err != nil {
+		return nil, fmt.Errorf("creating report file: %w", err)
+	}
+	return &JSONReporter{writer: f}, nil
+}
+
+// Write serializes the report as pretty-printed JSON and writes it.
+func (r *JSONReporter) Write(report ExperimentReport) error {
+	encoder := json.NewEncoder(r.writer)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(report)
+}
+
+// Close closes the underlying writer if it implements io.Closer.
+func (r *JSONReporter) Close() error {
+	if closer, ok := r.writer.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
+}
