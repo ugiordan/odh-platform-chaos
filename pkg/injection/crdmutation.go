@@ -66,13 +66,13 @@ func (m *CRDMutationInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 	// Save original field value for cleanup
 	fieldName := spec.Parameters["field"]
 	specMap, _, _ := unstructured.NestedMap(obj.Object, "spec")
-	var originalValue interface{}
+	var originalValue any
 	if specMap != nil {
 		originalValue = specMap[fieldName]
 	}
 
 	// Build rollback data for crash-safe recovery
-	rollbackInfo := map[string]interface{}{
+	rollbackInfo := map[string]any{
 		"apiVersion":    spec.Parameters["apiVersion"],
 		"kind":          spec.Parameters["kind"],
 		"field":         fieldName,
@@ -84,24 +84,24 @@ func (m *CRDMutationInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 	}
 
 	// Build annotations map with rollback data
-	annotationsMap := map[string]interface{}{
+	annotationsMap := map[string]any{
 		safety.RollbackAnnotationKey: rollbackStr,
 	}
 
 	// Build labels map with chaos labels
 	chaosLabels := safety.ChaosLabels(string(v1alpha1.CRDMutation))
-	labelsMap := make(map[string]interface{}, len(chaosLabels))
+	labelsMap := make(map[string]any, len(chaosLabels))
 	for k, v := range chaosLabels {
 		labelsMap[k] = v
 	}
 
 	// Apply mutation via merge patch including rollback annotation and chaos labels
-	patchMap := map[string]interface{}{
-		"metadata": map[string]interface{}{
+	patchMap := map[string]any{
+		"metadata": map[string]any{
 			"annotations": annotationsMap,
 			"labels":      labelsMap,
 		},
-		"spec": map[string]interface{}{
+		"spec": map[string]any{
 			fieldName: spec.Parameters["value"],
 		},
 	}
@@ -138,22 +138,22 @@ func (m *CRDMutationInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 		// Build a merge patch that restores the mutated field and removes
 		// the rollback annotation and chaos labels. In merge patch, setting
 		// a key to null removes it.
-		restoreAnnotations := map[string]interface{}{
+		restoreAnnotations := map[string]any{
 			safety.RollbackAnnotationKey: nil,
 		}
-		restoreLabels := make(map[string]interface{})
+		restoreLabels := make(map[string]any)
 		for k := range chaosLabels {
 			restoreLabels[k] = nil
 		}
 
 		// When originalValue is nil, JSON merge patch serializes it as null,
 		// which removes the key -- exactly the desired behavior.
-		restorePatchMap := map[string]interface{}{
-			"metadata": map[string]interface{}{
+		restorePatchMap := map[string]any{
+			"metadata": map[string]any{
 				"annotations": restoreAnnotations,
 				"labels":      restoreLabels,
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				fieldName: originalValue,
 			},
 		}

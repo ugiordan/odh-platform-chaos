@@ -16,13 +16,13 @@ func newTypesCommand() *cobra.Command {
 				desc   string
 				danger string
 			}{
-				{"PodKill", "Delete pods matching a label selector", "Medium"},
-				{"NetworkPartition", "Create deny-all NetworkPolicy", "High"},
-				{"ConfigDrift", "Modify ConfigMap or Secret data", "Medium"},
-				{"CRDMutation", "Mutate a field on any Kubernetes resource", "High"},
-				{"FinalizerBlock", "Add a blocking finalizer to a resource", "Medium"},
-				{"WebhookDisrupt", "Change webhook failure policy", "Critical"},
-				{"RBACRevoke", "Revoke RBAC binding subjects", "Critical"},
+				{"PodKill", "Delete pods matching a label selector", "low"},
+				{"NetworkPartition", "Create deny-all NetworkPolicy", "medium"},
+				{"ConfigDrift", "Modify ConfigMap or Secret data", "low"},
+				{"CRDMutation", "Mutate a field on any Kubernetes resource", "medium"},
+				{"FinalizerBlock", "Add a blocking finalizer to a resource", "medium"},
+				{"WebhookDisrupt", "Change webhook failure policy", "high"},
+				{"RBACRevoke", "Revoke RBAC binding subjects", "high"},
 			}
 			fmt.Println("Available injection types:")
 			fmt.Println()

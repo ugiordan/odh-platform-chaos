@@ -43,7 +43,7 @@ type ManagedResource struct {
 	Namespace    string                 `json:"namespace,omitempty" yaml:"namespace,omitempty"`
 	Labels       map[string]string      `json:"labels,omitempty" yaml:"labels,omitempty"`
 	OwnerRef     string                 `json:"ownerRef,omitempty" yaml:"ownerRef,omitempty"`
-	ExpectedSpec map[string]interface{} `json:"expectedSpec,omitempty" yaml:"expectedSpec,omitempty"`
+	ExpectedSpec map[string]any `json:"expectedSpec,omitempty" yaml:"expectedSpec,omitempty"`
 }
 
 // WebhookSpec describes a webhook associated with a component.

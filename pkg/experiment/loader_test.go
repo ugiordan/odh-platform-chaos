@@ -153,7 +153,8 @@ func TestValidate_MultipleErrors(t *testing.T) {
 	assert.Contains(t, errs, "spec.injection.type is required")
 	assert.Contains(t, errs, "spec.hypothesis.description is required")
 	assert.Contains(t, errs, "spec.blastRadius.allowedNamespaces must not be empty")
-	assert.Len(t, errs, 6, "should report exactly 6 validation errors")
+	assert.Contains(t, errs, "spec.blastRadius.maxPodsAffected must be greater than 0")
+	assert.Len(t, errs, 7, "should report exactly 7 validation errors")
 }
 
 func TestValidate_ValidWithAllFields(t *testing.T) {
@@ -237,7 +238,7 @@ func TestLoad_EmptyFile(t *testing.T) {
 	// The experiment loads successfully but validation should catch all missing fields
 	errs := Validate(exp)
 	assert.NotEmpty(t, errs, "empty experiment should fail validation")
-	assert.Len(t, errs, 6, "should report all missing required fields")
+	assert.Len(t, errs, 7, "should report all missing required fields")
 }
 
 func TestLoad_ValidYAMLReturnsExperiment(t *testing.T) {

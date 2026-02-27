@@ -38,8 +38,8 @@ type InjectionReport struct {
 
 // SteadyStateReport captures pre- and post-injection steady state.
 type SteadyStateReport struct {
-	Pre  interface{} `json:"pre,omitempty"`
-	Post interface{} `json:"post,omitempty"`
+	Pre  any `json:"pre,omitempty"`
+	Post any `json:"post,omitempty"`
 }
 
 // JSONReporter writes experiment reports as JSON.

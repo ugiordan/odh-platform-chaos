@@ -72,6 +72,9 @@ func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 		}
 		dataKey := spec.Parameters["key"]
 		originalValue = string(secret.Data[dataKey])
+		if secret.Data == nil {
+			secret.Data = make(map[string][]byte)
+		}
 		secret.Data[dataKey] = []byte(spec.Parameters["value"])
 
 		// Create a dedicated rollback Secret to avoid storing plaintext in annotations.
@@ -118,6 +121,9 @@ func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 			if err := d.client.Get(ctx, rbKey, rbSecret); err != nil {
 				return fmt.Errorf("reading rollback Secret %s: %w", rollbackSecretName, err)
 			}
+			if s.Data == nil {
+				s.Data = make(map[string][]byte)
+			}
 			s.Data[dataKey] = rbSecret.Data[dataKey]
 
 			// Remove rollback annotation and chaos labels
@@ -144,6 +150,9 @@ func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 	}
 	dataKey := spec.Parameters["key"]
 	originalValue = cm.Data[dataKey]
+	if cm.Data == nil {
+		cm.Data = make(map[string]string)
+	}
 	cm.Data[dataKey] = spec.Parameters["value"]
 
 	// Store rollback annotation for crash-safe recovery
@@ -166,6 +175,9 @@ func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 		c := &corev1.ConfigMap{}
 		if err := d.client.Get(ctx, key, c); err != nil {
 			return err
+		}
+		if c.Data == nil {
+			c.Data = make(map[string]string)
 		}
 		c.Data[dataKey] = originalValue
 

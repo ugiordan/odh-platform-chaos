@@ -39,7 +39,6 @@ spec:
     resource: "Deployment/%s"
   hypothesis:
     description: "%s recovers from %s"
-    expectedBehavior: "Operator reconciles all managed resources"
     recoveryTimeout: "60s"
   injection:
     type: %s
@@ -62,7 +61,6 @@ spec:
     timeout: "30s"
   blastRadius:
     maxPodsAffected: 1
-    maxConcurrentFaults: 1
     allowedNamespaces:
       - %s
     dryRun: false

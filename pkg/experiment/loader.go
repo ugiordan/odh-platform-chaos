@@ -56,6 +56,9 @@ func Validate(exp *v1alpha1.ChaosExperiment) []string {
 	if len(exp.Spec.BlastRadius.AllowedNamespaces) == 0 {
 		errs = append(errs, "spec.blastRadius.allowedNamespaces must not be empty")
 	}
+	if exp.Spec.BlastRadius.MaxPodsAffected <= 0 {
+		errs = append(errs, "spec.blastRadius.maxPodsAffected must be greater than 0")
+	}
 
 	return errs
 }

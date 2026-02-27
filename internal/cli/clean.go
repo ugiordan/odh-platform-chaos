@@ -722,7 +722,7 @@ func cleanCRDMutationFromResource(ctx context.Context, k8sClient client.Client, 
 	}
 
 	// Parse the rollback data as a generic map to check for CRDMutation signature
-	var rollbackData map[string]interface{}
+	var rollbackData map[string]any
 	if err := safety.UnwrapRollbackData(rollbackJSON, &rollbackData); err != nil {
 		return false
 	}
@@ -739,17 +739,17 @@ func cleanCRDMutationFromResource(ctx context.Context, k8sClient client.Client, 
 
 	// Build a merge patch that restores the field value and removes chaos metadata.
 	// Setting an annotation/label to null in a merge patch removes it.
-	restoreAnnotations := map[string]interface{}{
+	restoreAnnotations := map[string]any{
 		safety.RollbackAnnotationKey: nil,
 	}
 	chaosLabels := safety.ChaosLabels(string(v1alpha1.CRDMutation))
-	restoreLabels := make(map[string]interface{}, len(chaosLabels))
+	restoreLabels := make(map[string]any, len(chaosLabels))
 	for k := range chaosLabels {
 		restoreLabels[k] = nil
 	}
 
-	patchMap := map[string]interface{}{
-		"metadata": map[string]interface{}{
+	patchMap := map[string]any{
+		"metadata": map[string]any{
 			"annotations": restoreAnnotations,
 			"labels":      restoreLabels,
 		},
@@ -759,7 +759,7 @@ func cleanCRDMutationFromResource(ctx context.Context, k8sClient client.Client, 
 	if fieldName, ok := rollbackData["field"]; ok {
 		if fieldStr, ok := fieldName.(string); ok && fieldStr != "" {
 			originalValue := rollbackData["originalValue"]
-			patchMap["spec"] = map[string]interface{}{
+			patchMap["spec"] = map[string]any{
 				fieldStr: originalValue,
 			}
 		}

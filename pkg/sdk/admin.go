@@ -63,7 +63,7 @@ func NewAdminHandler(cfg *FaultConfig) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		status := map[string]interface{}{
+		status := map[string]any{
 			"active":     cfg != nil && cfg.IsActive(),
 			"faultCount": 0,
 		}

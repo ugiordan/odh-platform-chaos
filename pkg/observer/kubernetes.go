@@ -81,7 +81,7 @@ func (o *KubernetesObserver) checkCondition(ctx context.Context, check v1alpha1.
 	}
 
 	for _, c := range conditions {
-		cond, ok := c.(map[string]interface{})
+		cond, ok := c.(map[string]any)
 		if !ok {
 			continue
 		}
