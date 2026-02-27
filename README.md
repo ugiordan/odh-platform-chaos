@@ -117,37 +117,25 @@ Run all experiments in a directory:
 
 ### Injection Types
 
-#### Phase 1 --- Zero-Code (CLI-driven, requires cluster access)
+#### Resource-Level Faults (CLI-driven, requires cluster access)
 
 | Type | Description | Danger |
 |------|-------------|--------|
 | PodKill | Delete pods matching selector | low |
+| ConfigDrift | Modify managed ConfigMap/Secret data | low |
 | NetworkPartition | Block traffic via NetworkPolicy | medium |
 | CRDMutation | Mutate managed CR spec fields | medium |
-| ConfigDrift | Modify managed ConfigMap/Secret data | low |
+| FinalizerBlock | Add a stuck finalizer to block resource deletion | medium |
 | WebhookDisrupt | Set webhook failurePolicy to Fail | high |
 | RBACRevoke | Remove subjects from role bindings | high |
 
-#### Phase 2 --- SDK Middleware (one-line integration, no cluster needed)
+#### SDK Middleware Faults (ChaosClient wrapper, no cluster needed)
 
 | Type | Description | Danger |
 |------|-------------|--------|
 | ClientThrottle | Slow down API client responses | low |
 | APIServerError | Return errors from API calls | medium |
 | WatchDisconnect | Disconnect watch streams | medium |
-| LeaderElectionLoss | Simulate leader election loss | high |
-| WebhookTimeout | Delay webhook responses | medium |
-| WebhookReject | Reject webhook requests | medium |
-
-#### Phase 3 --- Advanced Fault Categories (SDK fault specs)
-
-| Category | Types | Description |
-|----------|-------|-------------|
-| Memory | MemoryLeak, MemoryPressure, AllocSpike | Memory exhaustion and allocation faults |
-| CPU | GoroutineBomb, BusySpin, GCPressure | CPU and goroutine exhaustion |
-| I/O | FDExhaustion, DiskWriteFailure, SlowReader | File descriptor and disk faults |
-| Concurrency | DeadlockInject, ChannelBlock, MutexStarvation | Concurrency and synchronization faults |
-| Network | ConnectionPoolExhaust, DNSFailure, SocketTimeout | Advanced network faults |
 
 ### Verdicts
 

@@ -12,14 +12,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// CRDMutationInjector injects faults by mutating spec fields on custom resources.
 type CRDMutationInjector struct {
 	client client.Client
 }
 
+// NewCRDMutationInjector creates a new CRDMutationInjector using the given Kubernetes client.
 func NewCRDMutationInjector(c client.Client) *CRDMutationInjector {
 	return &CRDMutationInjector{client: c}
 }
 
+// Validate checks that the injection spec contains the required parameters: apiVersion, kind, name, field, and value.
 func (m *CRDMutationInjector) Validate(spec v1alpha1.InjectionSpec, blast v1alpha1.BlastRadiusSpec) error {
 	if _, ok := spec.Parameters["apiVersion"]; !ok {
 		return fmt.Errorf("CRDMutation requires 'apiVersion' parameter")
@@ -45,6 +48,7 @@ func (m *CRDMutationInjector) Validate(spec v1alpha1.InjectionSpec, blast v1alph
 	return nil
 }
 
+// Inject mutates a spec field on the target custom resource and returns a cleanup function that restores the original value.
 func (m *CRDMutationInjector) Inject(ctx context.Context, spec v1alpha1.InjectionSpec, namespace string) (CleanupFunc, []v1alpha1.InjectionEvent, error) {
 	obj := &unstructured.Unstructured{}
 	obj.SetAPIVersion(spec.Parameters["apiVersion"])
@@ -142,27 +146,16 @@ func (m *CRDMutationInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 			restoreLabels[k] = nil
 		}
 
-		var restorePatchMap map[string]interface{}
-		if originalValue == nil {
-			restorePatchMap = map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"annotations": restoreAnnotations,
-					"labels":      restoreLabels,
-				},
-				"spec": map[string]interface{}{
-					fieldName: nil,
-				},
-			}
-		} else {
-			restorePatchMap = map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"annotations": restoreAnnotations,
-					"labels":      restoreLabels,
-				},
-				"spec": map[string]interface{}{
-					fieldName: originalValue,
-				},
-			}
+		// When originalValue is nil, JSON merge patch serializes it as null,
+		// which removes the key -- exactly the desired behavior.
+		restorePatchMap := map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": restoreAnnotations,
+				"labels":      restoreLabels,
+			},
+			"spec": map[string]interface{}{
+				fieldName: originalValue,
+			},
 		}
 		restorePatch, err := json.Marshal(restorePatchMap)
 		if err != nil {

@@ -280,13 +280,8 @@ func cleanWebhookConfigurations(ctx context.Context, k8sClient client.Client) in
 			}
 		}
 
-		// Remove rollback annotation
-		delete(wc.Annotations, safety.RollbackAnnotationKey)
-
-		// Remove chaos labels
-		for k := range safety.ChaosLabels(string(v1alpha1.WebhookDisrupt)) {
-			delete(wc.Labels, k)
-		}
+		// Remove rollback annotation and chaos labels
+		safety.RemoveChaosMetadata(wc, string(v1alpha1.WebhookDisrupt))
 
 		fmt.Printf("Restoring ValidatingWebhookConfiguration %q\n", wc.Name)
 		if err := k8sClient.Update(ctx, wc); err != nil {
@@ -328,13 +323,8 @@ func cleanRBACBindings(ctx context.Context, k8sClient client.Client, namespace s
 
 			crb.Subjects = originalSubjects
 
-			// Remove rollback annotation
-			delete(crb.Annotations, safety.RollbackAnnotationKey)
-
-			// Remove chaos labels
-			for k := range safety.ChaosLabels(string(v1alpha1.RBACRevoke)) {
-				delete(crb.Labels, k)
-			}
+			// Remove rollback annotation and chaos labels
+			safety.RemoveChaosMetadata(crb, string(v1alpha1.RBACRevoke))
 
 			fmt.Printf("Restoring ClusterRoleBinding %q\n", crb.Name)
 			if err := k8sClient.Update(ctx, crb); err != nil {
@@ -373,13 +363,8 @@ func cleanRBACBindings(ctx context.Context, k8sClient client.Client, namespace s
 
 			rb.Subjects = originalSubjects
 
-			// Remove rollback annotation
-			delete(rb.Annotations, safety.RollbackAnnotationKey)
-
-			// Remove chaos labels
-			for k := range safety.ChaosLabels(string(v1alpha1.RBACRevoke)) {
-				delete(rb.Labels, k)
-			}
+			// Remove rollback annotation and chaos labels
+			safety.RemoveChaosMetadata(rb, string(v1alpha1.RBACRevoke))
 
 			fmt.Printf("Restoring RoleBinding %s/%s\n", rb.Namespace, rb.Name)
 			if err := k8sClient.Update(ctx, rb); err != nil {
@@ -393,103 +378,107 @@ func cleanRBACBindings(ctx context.Context, k8sClient client.Client, namespace s
 	return restored
 }
 
+// scanResources lists resources of a given type in the specified namespace and
+// invokes itemCallback for each item. The extractItems function converts the
+// typed list into a slice of client.Object pointers. On list error, a warning
+// is printed and execution continues. The returned count is the number of items
+// for which the callback returned true.
+func scanResources(
+	ctx context.Context,
+	k8sClient client.Client,
+	namespace string,
+	list client.ObjectList,
+	extractItems func() []client.Object,
+	itemCallback func(client.Object) bool,
+	resourceKind string,
+	scanLabel string,
+) int {
+	if err := k8sClient.List(ctx, list, client.InNamespace(namespace)); err != nil {
+		fmt.Printf("Warning: listing %s for %s scan: %v\n", resourceKind, scanLabel, err)
+		return 0
+	}
+
+	count := 0
+	for _, obj := range extractItems() {
+		if itemCallback(obj) {
+			count++
+		}
+	}
+	return count
+}
+
 // cleanOrphanedFinalizers scans Deployments, ConfigMaps, Secrets, Services,
 // StatefulSets, DaemonSets, and Jobs for the rollback annotation left by the
 // FinalizerBlock injector. For each found, it removes the chaos finalizer,
 // rollback annotation, and chaos labels.
 func cleanOrphanedFinalizers(ctx context.Context, k8sClient client.Client, namespace string) int {
 	cleaned := 0
+	callback := func(obj client.Object) bool {
+		return cleanFinalizerFromResource(ctx, k8sClient, obj, obj.GetName(), obj.GetNamespace())
+	}
 
-	// Scan Deployments
 	deployments := &appsv1.DeploymentList{}
-	if err := k8sClient.List(ctx, deployments, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing Deployments for finalizer scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, deployments, func() []client.Object {
+		items := make([]client.Object, len(deployments.Items))
 		for i := range deployments.Items {
-			dep := &deployments.Items[i]
-			if cleanFinalizerFromResource(ctx, k8sClient, dep, dep.Name, dep.Namespace) {
-				cleaned++
-			}
+			items[i] = &deployments.Items[i]
 		}
-	}
+		return items
+	}, callback, "Deployments", "finalizer")
 
-	// Scan ConfigMaps
 	configMaps := &corev1.ConfigMapList{}
-	if err := k8sClient.List(ctx, configMaps, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing ConfigMaps for finalizer scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, configMaps, func() []client.Object {
+		items := make([]client.Object, len(configMaps.Items))
 		for i := range configMaps.Items {
-			cm := &configMaps.Items[i]
-			if cleanFinalizerFromResource(ctx, k8sClient, cm, cm.Name, cm.Namespace) {
-				cleaned++
-			}
+			items[i] = &configMaps.Items[i]
 		}
-	}
+		return items
+	}, callback, "ConfigMaps", "finalizer")
 
-	// Scan Secrets
 	secrets := &corev1.SecretList{}
-	if err := k8sClient.List(ctx, secrets, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing Secrets for finalizer scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, secrets, func() []client.Object {
+		items := make([]client.Object, len(secrets.Items))
 		for i := range secrets.Items {
-			s := &secrets.Items[i]
-			if cleanFinalizerFromResource(ctx, k8sClient, s, s.Name, s.Namespace) {
-				cleaned++
-			}
+			items[i] = &secrets.Items[i]
 		}
-	}
+		return items
+	}, callback, "Secrets", "finalizer")
 
-	// Scan Services
 	services := &corev1.ServiceList{}
-	if err := k8sClient.List(ctx, services, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing Services for finalizer scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, services, func() []client.Object {
+		items := make([]client.Object, len(services.Items))
 		for i := range services.Items {
-			svc := &services.Items[i]
-			if cleanFinalizerFromResource(ctx, k8sClient, svc, svc.Name, svc.Namespace) {
-				cleaned++
-			}
+			items[i] = &services.Items[i]
 		}
-	}
+		return items
+	}, callback, "Services", "finalizer")
 
-	// Scan StatefulSets
 	statefulSets := &appsv1.StatefulSetList{}
-	if err := k8sClient.List(ctx, statefulSets, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing StatefulSets for finalizer scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, statefulSets, func() []client.Object {
+		items := make([]client.Object, len(statefulSets.Items))
 		for i := range statefulSets.Items {
-			ss := &statefulSets.Items[i]
-			if cleanFinalizerFromResource(ctx, k8sClient, ss, ss.Name, ss.Namespace) {
-				cleaned++
-			}
+			items[i] = &statefulSets.Items[i]
 		}
-	}
+		return items
+	}, callback, "StatefulSets", "finalizer")
 
-	// Scan DaemonSets
 	daemonSets := &appsv1.DaemonSetList{}
-	if err := k8sClient.List(ctx, daemonSets, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing DaemonSets for finalizer scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, daemonSets, func() []client.Object {
+		items := make([]client.Object, len(daemonSets.Items))
 		for i := range daemonSets.Items {
-			ds := &daemonSets.Items[i]
-			if cleanFinalizerFromResource(ctx, k8sClient, ds, ds.Name, ds.Namespace) {
-				cleaned++
-			}
+			items[i] = &daemonSets.Items[i]
 		}
-	}
+		return items
+	}, callback, "DaemonSets", "finalizer")
 
-	// Scan Jobs
 	jobs := &batchv1.JobList{}
-	if err := k8sClient.List(ctx, jobs, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing Jobs for finalizer scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, jobs, func() []client.Object {
+		items := make([]client.Object, len(jobs.Items))
 		for i := range jobs.Items {
-			job := &jobs.Items[i]
-			if cleanFinalizerFromResource(ctx, k8sClient, job, job.Name, job.Namespace) {
-				cleaned++
-			}
+			items[i] = &jobs.Items[i]
 		}
-	}
+		return items
+	}, callback, "Jobs", "finalizer")
 
 	return cleaned
 }
@@ -519,18 +508,8 @@ func cleanFinalizerFromResource(ctx context.Context, k8sClient client.Client, ob
 	// Remove the chaos finalizer
 	controllerutil.RemoveFinalizer(obj, finalizerName)
 
-	// Remove rollback annotation
-	delete(annotations, safety.RollbackAnnotationKey)
-	obj.SetAnnotations(annotations)
-
-	// Remove chaos labels
-	labels := obj.GetLabels()
-	if labels != nil {
-		for k := range safety.ChaosLabels(string(v1alpha1.FinalizerBlock)) {
-			delete(labels, k)
-		}
-		obj.SetLabels(labels)
-	}
+	// Remove rollback annotation and chaos labels
+	safety.RemoveChaosMetadata(obj, string(v1alpha1.FinalizerBlock))
 
 	fmt.Printf("Removing orphaned finalizer %q from %s/%s\n", finalizerName, namespace, name)
 	if err := k8sClient.Update(ctx, obj); err != nil {
@@ -578,10 +557,8 @@ func cleanConfigDrift(ctx context.Context, k8sClient client.Client, namespace st
 			}
 			cm.Data[dataKey] = originalValue
 
-			delete(cm.Annotations, safety.RollbackAnnotationKey)
-			for k := range safety.ChaosLabels(string(v1alpha1.ConfigDrift)) {
-				delete(cm.Labels, k)
-			}
+			// Remove rollback annotation and chaos labels
+			safety.RemoveChaosMetadata(cm, string(v1alpha1.ConfigDrift))
 
 			fmt.Printf("Restoring ConfigMap %s/%s key %q\n", cm.Namespace, cm.Name, dataKey)
 			if err := k8sClient.Update(ctx, cm); err != nil {
@@ -634,10 +611,8 @@ func cleanConfigDrift(ctx context.Context, k8sClient client.Client, namespace st
 				}
 				s.Data[dataKey] = rbSecret.Data[dataKey]
 
-				delete(s.Annotations, safety.RollbackAnnotationKey)
-				for k := range safety.ChaosLabels(string(v1alpha1.ConfigDrift)) {
-					delete(s.Labels, k)
-				}
+				// Remove rollback annotation and chaos labels
+				safety.RemoveChaosMetadata(s, string(v1alpha1.ConfigDrift))
 
 				fmt.Printf("Restoring Secret %s/%s key %q from rollback Secret %q\n",
 					s.Namespace, s.Name, dataKey, rollbackSecretRef)
@@ -656,10 +631,8 @@ func cleanConfigDrift(ctx context.Context, k8sClient client.Client, namespace st
 				originalValue := rollbackData["originalValue"]
 				s.Data[dataKey] = []byte(originalValue)
 
-				delete(s.Annotations, safety.RollbackAnnotationKey)
-				for k := range safety.ChaosLabels(string(v1alpha1.ConfigDrift)) {
-					delete(s.Labels, k)
-				}
+				// Remove rollback annotation and chaos labels
+				safety.RemoveChaosMetadata(s, string(v1alpha1.ConfigDrift))
 
 				fmt.Printf("Restoring Secret %s/%s key %q\n", s.Namespace, s.Name, dataKey)
 				if err := k8sClient.Update(ctx, s); err != nil {
@@ -682,71 +655,54 @@ func cleanConfigDrift(ctx context.Context, k8sClient client.Client, namespace st
 // as that requires unstructured patch knowledge.
 func cleanCRDMutations(ctx context.Context, k8sClient client.Client, namespace string) int {
 	cleaned := 0
+	callback := func(obj client.Object) bool {
+		return cleanCRDMutationFromResource(ctx, k8sClient, obj, obj.GetName(), obj.GetNamespace())
+	}
 
-	// Scan Deployments
 	deployments := &appsv1.DeploymentList{}
-	if err := k8sClient.List(ctx, deployments, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing Deployments for CRD mutation scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, deployments, func() []client.Object {
+		items := make([]client.Object, len(deployments.Items))
 		for i := range deployments.Items {
-			dep := &deployments.Items[i]
-			if cleanCRDMutationFromResource(ctx, k8sClient, dep, dep.Name, dep.Namespace) {
-				cleaned++
-			}
+			items[i] = &deployments.Items[i]
 		}
-	}
+		return items
+	}, callback, "Deployments", "CRD mutation")
 
-	// Scan ConfigMaps
 	configMaps := &corev1.ConfigMapList{}
-	if err := k8sClient.List(ctx, configMaps, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing ConfigMaps for CRD mutation scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, configMaps, func() []client.Object {
+		items := make([]client.Object, len(configMaps.Items))
 		for i := range configMaps.Items {
-			cm := &configMaps.Items[i]
-			if cleanCRDMutationFromResource(ctx, k8sClient, cm, cm.Name, cm.Namespace) {
-				cleaned++
-			}
+			items[i] = &configMaps.Items[i]
 		}
-	}
+		return items
+	}, callback, "ConfigMaps", "CRD mutation")
 
-	// Scan Secrets
 	secrets := &corev1.SecretList{}
-	if err := k8sClient.List(ctx, secrets, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing Secrets for CRD mutation scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, secrets, func() []client.Object {
+		items := make([]client.Object, len(secrets.Items))
 		for i := range secrets.Items {
-			s := &secrets.Items[i]
-			if cleanCRDMutationFromResource(ctx, k8sClient, s, s.Name, s.Namespace) {
-				cleaned++
-			}
+			items[i] = &secrets.Items[i]
 		}
-	}
+		return items
+	}, callback, "Secrets", "CRD mutation")
 
-	// Scan Services
 	services := &corev1.ServiceList{}
-	if err := k8sClient.List(ctx, services, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing Services for CRD mutation scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, services, func() []client.Object {
+		items := make([]client.Object, len(services.Items))
 		for i := range services.Items {
-			svc := &services.Items[i]
-			if cleanCRDMutationFromResource(ctx, k8sClient, svc, svc.Name, svc.Namespace) {
-				cleaned++
-			}
+			items[i] = &services.Items[i]
 		}
-	}
+		return items
+	}, callback, "Services", "CRD mutation")
 
-	// Scan StatefulSets
 	statefulSets := &appsv1.StatefulSetList{}
-	if err := k8sClient.List(ctx, statefulSets, client.InNamespace(namespace)); err != nil {
-		fmt.Printf("Warning: listing StatefulSets for CRD mutation scan: %v\n", err)
-	} else {
+	cleaned += scanResources(ctx, k8sClient, namespace, statefulSets, func() []client.Object {
+		items := make([]client.Object, len(statefulSets.Items))
 		for i := range statefulSets.Items {
-			ss := &statefulSets.Items[i]
-			if cleanCRDMutationFromResource(ctx, k8sClient, ss, ss.Name, ss.Namespace) {
-				cleaned++
-			}
+			items[i] = &statefulSets.Items[i]
 		}
-	}
+		return items
+	}, callback, "StatefulSets", "CRD mutation")
 
 	return cleaned
 }

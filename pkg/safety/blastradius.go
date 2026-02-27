@@ -6,6 +6,7 @@ import (
 	v1alpha1 "github.com/opendatahub-io/odh-platform-chaos/api/v1alpha1"
 )
 
+// ValidateBlastRadius checks that the affected count, namespace, and resource are within blast radius limits.
 func ValidateBlastRadius(spec v1alpha1.BlastRadiusSpec, targetNamespace string, targetResource string, affectedCount int) error {
 	if spec.MaxPodsAffected <= 0 {
 		return fmt.Errorf("maxPodsAffected must be > 0, got %d", spec.MaxPodsAffected)
@@ -35,6 +36,7 @@ func ValidateBlastRadius(spec v1alpha1.BlastRadiusSpec, targetNamespace string, 
 	return nil
 }
 
+// CheckDangerLevel returns an error if a high-danger injection is attempted without explicit opt-in.
 func CheckDangerLevel(level v1alpha1.DangerLevel, allowDangerous bool) error {
 	if level == v1alpha1.DangerLevelHigh && !allowDangerous {
 		return fmt.Errorf("injection with dangerLevel=high requires blastRadius.allowDangerous=true")

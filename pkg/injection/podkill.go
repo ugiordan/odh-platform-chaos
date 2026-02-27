@@ -11,14 +11,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// PodKillInjector injects faults by force-deleting pods that match a label selector.
 type PodKillInjector struct {
 	client client.Client
 }
 
+// NewPodKillInjector creates a new PodKillInjector using the given Kubernetes client.
 func NewPodKillInjector(c client.Client) *PodKillInjector {
 	return &PodKillInjector{client: c}
 }
 
+// Validate checks that the kill count is within blast radius limits and that a valid labelSelector is provided.
 func (p *PodKillInjector) Validate(spec v1alpha1.InjectionSpec, blast v1alpha1.BlastRadiusSpec) error {
 	count := spec.Count
 	if count <= 0 {
@@ -28,22 +31,14 @@ func (p *PodKillInjector) Validate(spec v1alpha1.InjectionSpec, blast v1alpha1.B
 		return fmt.Errorf("pod kill count %d exceeds blast radius %d", count, blast.MaxPodsAffected)
 	}
 
-	selector := spec.Parameters["labelSelector"]
-	if selector == "" {
-		return fmt.Errorf("PodKill requires non-empty 'labelSelector' parameter")
-	}
-	parsed, err := labels.Parse(selector)
-	if err != nil {
-		return fmt.Errorf("invalid labelSelector %q: %w", selector, err)
-	}
-	reqs, _ := parsed.Requirements()
-	if len(reqs) == 0 {
-		return fmt.Errorf("labelSelector must have at least one requirement to prevent matching all pods")
+	if err := validateLabelSelector(spec, "PodKill"); err != nil {
+		return err
 	}
 
 	return nil
 }
 
+// Inject force-deletes pods matching the label selector and returns a no-op cleanup function.
 func (p *PodKillInjector) Inject(ctx context.Context, spec v1alpha1.InjectionSpec, namespace string) (CleanupFunc, []v1alpha1.InjectionEvent, error) {
 	selector, err := labels.Parse(spec.Parameters["labelSelector"])
 	if err != nil {

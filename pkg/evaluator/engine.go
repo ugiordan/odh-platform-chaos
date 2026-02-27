@@ -14,10 +14,12 @@ type Evaluator struct {
 	maxReconcileCycles int
 }
 
+// New creates an Evaluator that flags excessive reconciliation when cycles exceed maxReconcileCycles.
 func New(maxReconcileCycles int) *Evaluator {
 	return &Evaluator{maxReconcileCycles: maxReconcileCycles}
 }
 
+// Evaluate compares pre- and post-injection check results against the hypothesis and returns a verdict.
 func (e *Evaluator) Evaluate(
 	preCheck *v1alpha1.CheckResult,
 	postCheck *v1alpha1.CheckResult,

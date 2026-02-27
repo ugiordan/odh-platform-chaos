@@ -12,14 +12,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ConfigDriftInjector injects faults by modifying data in ConfigMaps or Secrets.
 type ConfigDriftInjector struct {
 	client client.Client
 }
 
+// NewConfigDriftInjector creates a new ConfigDriftInjector using the given Kubernetes client.
 func NewConfigDriftInjector(c client.Client) *ConfigDriftInjector {
 	return &ConfigDriftInjector{client: c}
 }
 
+// Validate checks that the injection spec contains the required parameters: name, key, and value.
 func (d *ConfigDriftInjector) Validate(spec v1alpha1.InjectionSpec, blast v1alpha1.BlastRadiusSpec) error {
 	if _, ok := spec.Parameters["name"]; !ok {
 		return fmt.Errorf("ConfigDrift requires 'name' parameter")
@@ -48,6 +51,7 @@ func (d *ConfigDriftInjector) Validate(spec v1alpha1.InjectionSpec, blast v1alph
 	return nil
 }
 
+// Inject overwrites a key in the target ConfigMap or Secret and returns a cleanup function that restores the original value.
 func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.InjectionSpec, namespace string) (CleanupFunc, []v1alpha1.InjectionEvent, error) {
 	key := types.NamespacedName{
 		Name:      spec.Parameters["name"],
@@ -100,7 +104,7 @@ func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 		safety.ApplyChaosMetadata(secret, rollbackStr, string(v1alpha1.ConfigDrift))
 
 		if err := d.client.Update(ctx, secret); err != nil {
-			return nil, nil, fmt.Errorf("updating Secret: %w", err)
+			return nil, nil, fmt.Errorf("updating Secret %s/%s: %w", key.Namespace, key.Name, err)
 		}
 		cleanup := func(ctx context.Context) error {
 			s := &corev1.Secret{}
@@ -155,7 +159,7 @@ func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 	safety.ApplyChaosMetadata(cm, rollbackStr, string(v1alpha1.ConfigDrift))
 
 	if err := d.client.Update(ctx, cm); err != nil {
-		return nil, nil, fmt.Errorf("updating ConfigMap: %w", err)
+		return nil, nil, fmt.Errorf("updating ConfigMap %s/%s: %w", key.Namespace, key.Name, err)
 	}
 
 	cleanup := func(ctx context.Context) error {

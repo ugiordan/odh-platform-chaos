@@ -100,7 +100,7 @@ func (o *Orchestrator) Run(ctx context.Context, exp *v1alpha1.ChaosExperiment) (
 	// Determine namespace early (needed for blast radius validation)
 	namespace := exp.Metadata.Namespace
 	if namespace == "" {
-		namespace = "opendatahub"
+		namespace = v1alpha1.DefaultNamespace
 		o.logger.Warn("no namespace specified, using default", "namespace", namespace)
 	}
 

@@ -74,6 +74,10 @@ const (
 	DangerLevelHigh DangerLevel = "high"
 )
 
+// DefaultNamespace is the default Kubernetes namespace used by
+// the chaos framework when no namespace is explicitly specified.
+const DefaultNamespace = "opendatahub"
+
 type InjectionType string
 
 const (

@@ -6,6 +6,7 @@ import (
 	"sync"
 )
 
+// ExperimentLock prevents concurrent experiments from running against the same operator.
 type ExperimentLock interface {
 	Acquire(ctx context.Context, operator string, experimentName string) error
 	Release(operator string)
@@ -16,6 +17,7 @@ type localExperimentLock struct {
 	locks map[string]string // operator -> experimentName
 }
 
+// NewLocalExperimentLock returns an in-process ExperimentLock backed by a sync.Mutex.
 func NewLocalExperimentLock() ExperimentLock {
 	return &localExperimentLock{
 		locks: make(map[string]string),

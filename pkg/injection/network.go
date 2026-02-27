@@ -17,30 +17,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// invalidK8sNameChars matches characters that are not valid in Kubernetes resource names.
+var invalidK8sNameChars = regexp.MustCompile(`[^a-z0-9\-]`)
+
+// NetworkPartitionInjector injects faults by creating a deny-all NetworkPolicy for pods matching a label selector.
 type NetworkPartitionInjector struct {
 	client client.Client
 }
 
+// NewNetworkPartitionInjector creates a new NetworkPartitionInjector using the given Kubernetes client.
 func NewNetworkPartitionInjector(c client.Client) *NetworkPartitionInjector {
 	return &NetworkPartitionInjector{client: c}
 }
 
+// Validate checks that the injection spec contains a valid, non-empty labelSelector parameter.
 func (n *NetworkPartitionInjector) Validate(spec v1alpha1.InjectionSpec, blast v1alpha1.BlastRadiusSpec) error {
-	selector := spec.Parameters["labelSelector"]
-	if selector == "" {
-		return fmt.Errorf("NetworkPartition requires non-empty 'labelSelector' parameter")
-	}
-	parsed, err := labels.Parse(selector)
-	if err != nil {
-		return fmt.Errorf("invalid labelSelector %q: %w", selector, err)
-	}
-	reqs, _ := parsed.Requirements()
-	if len(reqs) == 0 {
-		return fmt.Errorf("labelSelector must have at least one requirement to prevent matching all pods")
-	}
-	return nil
+	return validateLabelSelector(spec, "NetworkPartition")
 }
 
+// Inject creates a deny-all NetworkPolicy targeting the selected pods and returns a cleanup function that deletes it.
 func (n *NetworkPartitionInjector) Inject(ctx context.Context, spec v1alpha1.InjectionSpec, namespace string) (CleanupFunc, []v1alpha1.InjectionEvent, error) {
 	selector, err := labels.Parse(spec.Parameters["labelSelector"])
 	if err != nil {
@@ -110,8 +105,7 @@ func (n *NetworkPartitionInjector) Inject(ctx context.Context, spec v1alpha1.Inj
 // It replaces invalid characters with hyphens, truncates if necessary, and appends a hash
 // suffix for uniqueness when truncation is needed.
 func sanitizeK8sName(prefix, input string) string {
-	re := regexp.MustCompile(`[^a-z0-9\-]`)
-	sanitized := re.ReplaceAllString(strings.ToLower(input), "-")
+	sanitized := invalidK8sNameChars.ReplaceAllString(strings.ToLower(input), "-")
 
 	name := prefix + sanitized
 	if len(name) > 63 {

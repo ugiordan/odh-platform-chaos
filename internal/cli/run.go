@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	v1alpha1 "github.com/opendatahub-io/odh-platform-chaos/api/v1alpha1"
 	"github.com/opendatahub-io/odh-platform-chaos/pkg/experiment"
 	"github.com/spf13/cobra"
 )
@@ -71,7 +72,7 @@ func newRunCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate without injecting")
 	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "total experiment timeout")
 	cmd.Flags().BoolVar(&distributedLock, "distributed-lock", false, "use Kubernetes Lease-based distributed locking")
-	cmd.Flags().StringVar(&lockNamespace, "lock-namespace", "opendatahub", "namespace for distributed lock leases")
+	cmd.Flags().StringVar(&lockNamespace, "lock-namespace", v1alpha1.DefaultNamespace, "namespace for distributed lock leases")
 
 	return cmd
 }

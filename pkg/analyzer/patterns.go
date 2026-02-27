@@ -1,5 +1,6 @@
 package analyzer
 
+// PatternType classifies a source code pattern detected by the analyzer.
 type PatternType string
 
 const (
@@ -10,6 +11,7 @@ const (
 	PatternK8sAPICall      PatternType = "K8sAPICall"
 )
 
+// Finding represents a single fault-injection candidate found in source code.
 type Finding struct {
 	Type     PatternType `json:"type"`
 	File     string      `json:"file"`

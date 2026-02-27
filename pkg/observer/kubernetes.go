@@ -85,8 +85,14 @@ func (o *KubernetesObserver) checkCondition(ctx context.Context, check v1alpha1.
 		if !ok {
 			continue
 		}
-		condType, _, _ := unstructured.NestedString(cond, "type")
-		condStatus, _, _ := unstructured.NestedString(cond, "status")
+		condType, typeFound, _ := unstructured.NestedString(cond, "type")
+		if !typeFound {
+			continue
+		}
+		condStatus, statusFound, _ := unstructured.NestedString(cond, "status")
+		if !statusFound {
+			condStatus = ""
+		}
 
 		if condType == check.ConditionType {
 			return condStatus == "True", fmt.Sprintf("%s=%s", condType, condStatus), nil

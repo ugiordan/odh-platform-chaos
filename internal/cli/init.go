@@ -84,7 +84,7 @@ spec:
 	cmd.Flags().StringVar(&component, "component", "", "target component name (required)")
 	cmd.Flags().StringVar(&injectionType, "type", "PodKill", "injection type")
 	cmd.Flags().StringVar(&operator, "operator", "opendatahub-operator", "target operator")
-	cmd.Flags().StringVar(&namespace, "namespace", "opendatahub", "target namespace")
+	cmd.Flags().StringVar(&namespace, "namespace", v1alpha1.DefaultNamespace, "target namespace")
 
 	return cmd
 }
