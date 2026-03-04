@@ -66,8 +66,11 @@ odh-chaos run experiment.yaml [flags]
 
 Flags:
 - `--knowledge` --- Path to operator knowledge YAML
-- `--report-dir` --- Directory for JSON report output
-- `--dry-run` --- Validate without injecting faults
+- `--report-dir` --- Directory for report output
+- `--dry-run` --- Validate without injecting
+- `--timeout` --- Total experiment timeout (default 10m)
+- `--distributed-lock` --- Use Kubernetes Lease-based distributed locking
+- `--lock-namespace` --- Namespace for distributed lock leases (default opendatahub)
 
 ### Analyze
 
