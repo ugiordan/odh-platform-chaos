@@ -26,7 +26,7 @@ go install github.com/opendatahub-io/odh-platform-chaos/cmd/odh-chaos@latest
 
 1. Create an experiment:
 ```bash
-odh-chaos init --component dashboard --type PodKill > experiment.yaml
+odh-chaos init --component odh-model-controller --type PodKill > experiment.yaml
 ```
 
 2. Validate:
@@ -41,7 +41,7 @@ odh-chaos run experiment.yaml --dry-run
 
 4. Execute (requires cluster access):
 ```bash
-odh-chaos run experiment.yaml --knowledge knowledge/odh-operator.yaml
+odh-chaos run experiment.yaml --knowledge knowledge/odh-model-controller.yaml
 ```
 
 ## CLI Reference
@@ -203,6 +203,10 @@ flowchart LR
     FC -->|"if inactive"| REAL["Real K8s Client"]
     ADMIN["/chaos/health<br/>/chaos/status<br/>/chaos/faultpoints"] --> FC
 ```
+
+## End-to-End Testing Guide
+
+For a complete walkthrough covering knowledge models, all injection types, suite execution, and expected verdicts --- see [docs/e2e-testing-guide.md](docs/e2e-testing-guide.md). Production knowledge models and experiment suites for **odh-model-controller** (11 experiments) and **kserve** (4 experiments) are shipped in `knowledge/` and `experiments/`.
 
 ## Contributing
 
