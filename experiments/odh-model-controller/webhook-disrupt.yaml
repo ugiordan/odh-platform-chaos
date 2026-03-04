@@ -1,0 +1,49 @@
+apiVersion: chaos.opendatahub.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: odh-model-controller-webhook-disrupt
+spec:
+  target:
+    operator: odh-model-controller
+    component: odh-model-controller
+    resource: ValidatingWebhookConfiguration/validating.odh-model-controller.opendatahub.io
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-model-controller
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: WebhookDisrupt
+    dangerLevel: high
+    # NOTE: The WebhookDisrupt injector currently only supports setting
+    # failurePolicy to "Fail" (hardcoded). Since odh-model-controller
+    # webhooks already use failurePolicy: Fail, this experiment does not
+    # cause actual disruption. It validates that the framework can interact
+    # with webhook configurations and that the injection/cleanup lifecycle
+    # completes correctly.
+    #
+    # Known limitation: The injector should support setting failurePolicy
+    # to "Ignore" to enable meaningful disruption testing. See framework
+    # backlog for the enhancement request.
+    parameters:
+      webhookName: validating.odh-model-controller.opendatahub.io
+      action: setFailurePolicy
+      value: Fail
+    ttl: "60s"
+  hypothesis:
+    description: >-
+      When the validating webhook failure policy is changed to Fail,
+      API server requests for resources covered by the webhook should
+      be rejected if the webhook endpoint is unavailable, rather than
+      silently admitted. The controller should remain operational and
+      the webhook should be restorable to its original policy.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub
+    allowDangerous: true

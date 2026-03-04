@@ -1,0 +1,41 @@
+apiVersion: chaos.opendatahub.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: odh-model-controller-finalizer-block
+spec:
+  target:
+    operator: odh-model-controller
+    component: odh-model-controller
+    resource: InferenceService
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-model-controller
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: FinalizerBlock
+    # IMPORTANT: "test-isvc" is a placeholder. Replace it with the name of an
+    # actual InferenceService resource deployed in the target namespace before
+    # running this experiment. The experiment targets a specific CR instance,
+    # so a real resource name is required.
+    parameters:
+      apiVersion: serving.kserve.io/v1beta1
+      kind: InferenceService
+      name: test-isvc
+      finalizer: odh.inferenceservice.finalizers
+    ttl: "300s"
+  hypothesis:
+    description: >-
+      When a stuck finalizer prevents an InferenceService from being
+      deleted, the odh-model-controller should handle the Terminating
+      state gracefully, report the blocked deletion in its status, and
+      not leak associated resources such as Routes or Services.
+    recoveryTimeout: 180s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub

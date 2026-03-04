@@ -1,0 +1,36 @@
+apiVersion: chaos.opendatahub.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: odh-model-controller-config-drift
+spec:
+  target:
+    operator: odh-model-controller
+    component: odh-model-controller
+    resource: ConfigMap/inferenceservice-config
+  steadyState:
+    checks:
+      - type: resourceExists
+        apiVersion: v1
+        kind: ConfigMap
+        name: inferenceservice-config
+        namespace: opendatahub
+    timeout: "30s"
+  injection:
+    type: ConfigDrift
+    parameters:
+      name: inferenceservice-config
+      key: deploy
+      value: '{"defaultDeploymentMode":"INVALID_MODE"}'
+      resourceType: ConfigMap
+    ttl: "300s"
+  hypothesis:
+    description: >-
+      When the inferenceservice-config ConfigMap is corrupted with an
+      invalid deployment mode, the odh-model-controller should detect
+      the misconfiguration and either fall back to defaults or surface
+      clear error conditions rather than silently failing.
+    recoveryTimeout: 180s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub

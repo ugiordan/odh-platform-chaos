@@ -1,0 +1,38 @@
+apiVersion: chaos.opendatahub.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: odh-model-controller-rbac-revoke
+spec:
+  target:
+    operator: odh-model-controller
+    component: odh-model-controller
+    resource: ClusterRoleBinding/odh-model-controller-rolebinding-opendatahub
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-model-controller
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: RBACRevoke
+    dangerLevel: high
+    parameters:
+      bindingName: odh-model-controller-rolebinding-opendatahub
+      bindingType: ClusterRoleBinding
+    ttl: "60s"
+  hypothesis:
+    description: >-
+      When the odh-model-controller ClusterRoleBinding subjects are
+      revoked, the controller should lose its ability to reconcile
+      cluster-scoped resources and surface permission-denied errors in
+      its logs. Once permissions are restored, normal reconciliation
+      should resume without manual intervention.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub
+    allowDangerous: true
