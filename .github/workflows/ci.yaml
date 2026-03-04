@@ -48,7 +48,13 @@ jobs:
         run: go build -o bin/odh-chaos ./cmd/odh-chaos
       - name: Validate experiment files
         run: |
-          find experiments \( -name '*.yaml' -o -name '*.yml' \) -exec bin/odh-chaos validate {} \;
+          status=0
+          while IFS= read -r -d '' file; do
+            if ! bin/odh-chaos validate "$file"; then
+              status=1
+            fi
+          done < <(find experiments \( -name '*.yaml' -o -name '*.yml' \) -print0)
+          exit "$status"
 
   build:
     runs-on: ubuntu-latest
