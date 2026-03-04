@@ -1,0 +1,39 @@
+apiVersion: chaos.opendatahub.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: kserve-isvc-defaulter-disrupt
+spec:
+  target:
+    operator: kserve
+    component: kserve-controller-manager
+    resource: ValidatingWebhookConfiguration/inferenceservice.serving.kserve.io
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: kserve-controller-manager
+        namespace: kserve
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: WebhookDisrupt
+    dangerLevel: high
+    parameters:
+      webhookName: "inferenceservice.serving.kserve.io"
+      action: "setFailurePolicy"
+      value: "Ignore"
+    ttl: "60s"
+  hypothesis:
+    description: >-
+      When the ValidatingWebhookConfiguration for InferenceService has
+      its failurePolicy weakened from Fail to Ignore, the kserve operator
+      should detect the drift and restore strict validation within 120s.
+      While the policy is weakened, invalid InferenceService resources
+      could bypass validation, so rapid recovery is critical.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - kserve
+    allowDangerous: true
