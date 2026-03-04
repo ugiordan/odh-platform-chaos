@@ -17,6 +17,7 @@ spec:
     timeout: "30s"
   injection:
     type: CRDMutation
+    dangerLevel: high
     parameters:
       apiVersion: "coordination.k8s.io/v1"
       kind: "Lease"
@@ -33,3 +34,4 @@ spec:
     maxPodsAffected: 1
     allowedNamespaces:
       - opendatahub
+    allowDangerous: true
