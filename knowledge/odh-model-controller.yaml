@@ -62,6 +62,7 @@ components:
           apiVersion: apps/v1
           kind: Deployment
           name: odh-model-controller
+          namespace: opendatahub
           conditionType: Available
       timeout: "60s"
 

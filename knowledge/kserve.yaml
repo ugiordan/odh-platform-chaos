@@ -64,6 +64,7 @@ components:
           apiVersion: apps/v1
           kind: Deployment
           name: kserve-controller-manager
+          namespace: kserve
           conditionType: Available
       timeout: "60s"
 
@@ -116,6 +117,7 @@ components:
           apiVersion: apps/v1
           kind: Deployment
           name: llmisvc-controller-manager
+          namespace: kserve
           conditionType: Available
       timeout: "60s"
 
@@ -158,6 +160,7 @@ components:
           apiVersion: apps/v1
           kind: Deployment
           name: kserve-localmodel-controller-manager
+          namespace: kserve
           conditionType: Available
       timeout: "60s"
 
