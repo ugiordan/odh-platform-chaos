@@ -17,7 +17,7 @@ This walkthrough uses **odh-model-controller** --- the operator that manages Inf
 
 The odh-model-controller knowledge model is at `knowledge/odh-model-controller.yaml`. It defines:
 
-- 1 component with 5 managed resources (Deployment, ConfigMap, ServiceAccount, Secret, Lease)
+- 1 component with 6 managed resources (Deployment, ConfigMap, ServiceAccount, Secret, ClusterRoleBinding, Lease)
 - 7 webhooks (3 mutating, 4 validating)
 - 3 finalizers
 - Steady-state check: Deployment Available condition
