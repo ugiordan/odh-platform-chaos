@@ -26,7 +26,7 @@ func Load(path string) (*v1alpha1.ChaosExperiment, error) {
 	}
 
 	var exp v1alpha1.ChaosExperiment
-	if err := yaml.Unmarshal(data, &exp); err != nil {
+	if err := yaml.UnmarshalStrict(data, &exp); err != nil {
 		return nil, fmt.Errorf("parsing experiment file %s: %w", path, err)
 	}
 

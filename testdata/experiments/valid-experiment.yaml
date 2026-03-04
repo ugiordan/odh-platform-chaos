@@ -12,7 +12,6 @@ spec:
     resource: Deployment/odh-dashboard
   hypothesis:
     description: "Dashboard recovers from pod termination within 60s"
-    expectedBehavior: "Deployment controller recreates pod, all replicas ready"
     recoveryTimeout: "60s"
   injection:
     type: PodKill
@@ -20,7 +19,6 @@ spec:
       signal: "SIGKILL"
       labelSelector: "app.kubernetes.io/part-of=dashboard"
     count: 1
-    duration: "0s"
     ttl: "300s"
   observation:
     interval: "5s"
@@ -37,7 +35,6 @@ spec:
     timeout: "30s"
   blastRadius:
     maxPodsAffected: 1
-    maxConcurrentFaults: 1
     allowedNamespaces:
       - opendatahub
     dryRun: false

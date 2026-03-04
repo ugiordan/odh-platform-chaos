@@ -8,7 +8,6 @@ spec:
     component: ""
   hypothesis:
     description: ""
-    expectedBehavior: ""
     recoveryTimeout: "0s"
   injection:
     type: ""

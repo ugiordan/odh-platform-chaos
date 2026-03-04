@@ -241,6 +241,33 @@ func TestLoad_EmptyFile(t *testing.T) {
 	assert.Len(t, errs, 7, "should report all missing required fields")
 }
 
+func TestLoad_RejectsUnknownFields(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "unknown-field.yaml")
+	content := []byte(`
+metadata:
+  name: test
+spec:
+  target:
+    operator: test
+    component: test
+  injection:
+    type: PodKill
+  hypothesis:
+    description: "test"
+    expectedBehavior: "this field does not exist in the struct"
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - default
+`)
+	require.NoError(t, os.WriteFile(path, content, 0644))
+
+	_, err := Load(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field")
+}
+
 func TestLoad_ValidYAMLReturnsExperiment(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.yaml")
