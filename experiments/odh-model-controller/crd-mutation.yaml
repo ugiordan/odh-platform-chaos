@@ -34,10 +34,13 @@ spec:
     ttl: "300s"
   hypothesis:
     description: >-
-      When an InferenceService spec field is mutated to an unexpected value,
-      the odh-model-controller should detect the invalid state during
-      reconciliation, set a degraded condition on the resource, and avoid
-      propagating the invalid configuration to downstream components.
+      InferenceService has no scalar top-level spec fields, so this
+      experiment injects an unknown field ("chaosTest") via merge patch.
+      The controller should reconcile without error and not propagate
+      the unknown field to downstream resources. The expected verdict is
+      Resilient — the controller ignores unknown fields gracefully.
+      The chaos framework removes the injected field via TTL-based cleanup
+      after 300s.
     recoveryTimeout: 120s
   blastRadius:
     maxPodsAffected: 1
