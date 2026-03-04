@@ -206,7 +206,7 @@ flowchart LR
 
 ## End-to-End Testing Guide
 
-For a complete walkthrough covering knowledge models, all injection types, suite execution, and expected verdicts --- see [docs/e2e-testing-guide.md](docs/e2e-testing-guide.md). Production knowledge models and experiment suites for **odh-model-controller** (11 experiments) and **kserve** (4 experiments) are shipped in `knowledge/` and `experiments/`.
+For a complete walkthrough covering knowledge models, all injection types, suite execution, and expected verdicts --- see [docs/e2e-testing-guide.md](docs/e2e-testing-guide.md). Production knowledge models and experiment suites for **odh-model-controller** (10 experiments) and **kserve** (4 experiments) are shipped in `knowledge/` and `experiments/`.
 
 ## Contributing
 

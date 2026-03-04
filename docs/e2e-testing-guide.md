@@ -411,7 +411,6 @@ Beyond the 7 base injection types, the following experiments test operator-speci
 |------|-----------|--------|------|
 | `webhook-cert-corrupt.yaml` | ConfigDrift | Webhook TLS cert Secret | high |
 | `leader-lease-corrupt.yaml` | CRDMutation | Leader election Lease holderIdentity | high |
-| `webhook-policy-weaken.yaml` | WebhookDisrupt | Validating webhook failurePolicy → Ignore | high |
 | `ingress-config-corruption.yaml` | ConfigDrift | ConfigMap ingress key | high |
 
 These are in `experiments/odh-model-controller/` alongside the base experiments.
