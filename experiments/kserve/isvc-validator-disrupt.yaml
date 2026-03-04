@@ -1,7 +1,7 @@
 apiVersion: chaos.opendatahub.io/v1alpha1
 kind: ChaosExperiment
 metadata:
-  name: kserve-isvc-defaulter-disrupt
+  name: kserve-isvc-validator-disrupt
 spec:
   target:
     operator: kserve
@@ -27,10 +27,11 @@ spec:
   hypothesis:
     description: >-
       When the ValidatingWebhookConfiguration for InferenceService has
-      its failurePolicy weakened from Fail to Ignore, the kserve operator
-      should detect the drift and restore strict validation within 120s.
-      While the policy is weakened, invalid InferenceService resources
-      could bypass validation, so rapid recovery is critical.
+      its failurePolicy weakened from Fail to Ignore, invalid
+      InferenceService resources can bypass validation. This tests the
+      blast radius of a weakened admission policy. Recovery is provided
+      by the chaos framework's TTL-based cleanup after 60s, since kserve
+      does not self-heal webhook configuration drift.
     recoveryTimeout: 120s
   blastRadius:
     maxPodsAffected: 1
