@@ -11,6 +11,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const reconciliationPollInterval = 2 * time.Second
+
 // ReconciliationChecker verifies that an operator has properly reconciled
 // all managed resources for a given component. This is the key innovation
 // of odh-platform-chaos: checking semantic reconciliation (correct metadata,
@@ -60,7 +62,7 @@ func (r *ReconciliationChecker) CheckReconciliation(
 	deadline := startTime.Add(timeout)
 	cycles := 0
 
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(reconciliationPollInterval)
 	defer ticker.Stop()
 
 	for time.Now().Before(deadline) {

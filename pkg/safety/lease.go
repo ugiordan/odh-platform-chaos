@@ -17,6 +17,8 @@ import (
 // considered expired after this many seconds (15 minutes).
 const DefaultLeaseDurationSeconds = int32(900)
 
+const leaseReleaseTimeout = 10 * time.Second
+
 // LeaseExperimentLock implements ExperimentLock using Kubernetes Lease objects
 // for distributed safety. Only one experiment per operator can run across
 // all instances of odh-chaos in the cluster.
@@ -111,7 +113,7 @@ func (l *LeaseExperimentLock) Release(operator string) {
 			Namespace: l.namespace,
 		},
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), leaseReleaseTimeout)
 	defer cancel()
 	if err := l.client.Delete(ctx, lease); err != nil {
 		l.logger.Error("failed to release lease",

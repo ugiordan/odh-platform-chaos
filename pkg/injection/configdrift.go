@@ -37,100 +37,97 @@ func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 	if resourceType == "" {
 		resourceType = "ConfigMap"
 	}
-
-	var originalValue string
+	dataKey := spec.Parameters["key"]
 
 	if resourceType == "Secret" {
-		secret := &corev1.Secret{}
-		if err := d.client.Get(ctx, key, secret); err != nil {
-			return nil, nil, fmt.Errorf("getting Secret %s: %w", key, err)
-		}
-		dataKey := spec.Parameters["key"]
-		originalValue = string(secret.Data[dataKey])
-		if secret.Data == nil {
-			secret.Data = make(map[string][]byte)
-		}
-		secret.Data[dataKey] = []byte(spec.Parameters["value"])
+		return d.injectSecret(ctx, key, dataKey, spec.Parameters["value"], namespace)
+	}
+	return d.injectConfigMap(ctx, key, dataKey, spec.Parameters["value"])
+}
 
-		// Create a dedicated rollback Secret to avoid storing plaintext in annotations.
-		// Include the data key in the name to prevent collision when multiple keys are injected.
-		rollbackSecretName := "chaos-rollback-" + key.Name + "-" + dataKey
-		rollbackSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      rollbackSecretName,
-				Namespace: namespace,
-				Labels:    safety.ChaosLabels(string(v1alpha1.ConfigDrift)),
-			},
-			Data: map[string][]byte{
-				dataKey: []byte(originalValue),
-			},
-		}
-		if err := d.client.Create(ctx, rollbackSecret); err != nil {
-			return nil, nil, fmt.Errorf("creating rollback Secret %s: %w", rollbackSecretName, err)
-		}
+func (d *ConfigDriftInjector) injectSecret(ctx context.Context, key types.NamespacedName, dataKey, newValue, namespace string) (CleanupFunc, []v1alpha1.InjectionEvent, error) {
+	secret := &corev1.Secret{}
+	if err := d.client.Get(ctx, key, secret); err != nil {
+		return nil, nil, fmt.Errorf("getting Secret %s: %w", key, err)
+	}
+	originalValue := string(secret.Data[dataKey])
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
+	secret.Data[dataKey] = []byte(newValue)
 
-		// Store rollback annotation with reference to rollback Secret (no plaintext value)
-		rollbackInfo := map[string]string{
-			"resourceType":      "Secret",
-			"key":               dataKey,
-			"rollbackSecretRef": rollbackSecretName,
-		}
-		rollbackStr, err := safety.WrapRollbackData(rollbackInfo)
-		if err != nil {
-			return nil, nil, fmt.Errorf("serializing rollback data for Secret %s: %w", key, err)
-		}
-		safety.ApplyChaosMetadata(secret, rollbackStr, string(v1alpha1.ConfigDrift))
-
-		if err := d.client.Update(ctx, secret); err != nil {
-			return nil, nil, fmt.Errorf("updating Secret %s/%s: %w", key.Namespace, key.Name, err)
-		}
-		cleanup := func(ctx context.Context) error {
-			s := &corev1.Secret{}
-			if err := d.client.Get(ctx, key, s); err != nil {
-				return err
-			}
-
-			// Read original value from the rollback Secret
-			rbSecret := &corev1.Secret{}
-			rbKey := types.NamespacedName{Name: rollbackSecretName, Namespace: namespace}
-			if err := d.client.Get(ctx, rbKey, rbSecret); err != nil {
-				return fmt.Errorf("reading rollback Secret %s: %w", rollbackSecretName, err)
-			}
-			if s.Data == nil {
-				s.Data = make(map[string][]byte)
-			}
-			s.Data[dataKey] = rbSecret.Data[dataKey]
-
-			// Remove rollback annotation and chaos labels
-			safety.RemoveChaosMetadata(s, string(v1alpha1.ConfigDrift))
-
-			if err := d.client.Update(ctx, s); err != nil {
-				return err
-			}
-
-			// Delete the rollback Secret
-			return d.client.Delete(ctx, rbSecret)
-		}
-		events := []v1alpha1.InjectionEvent{
-			NewEvent(v1alpha1.ConfigDrift, key.String(), "drifted",
-				map[string]string{"resourceType": "Secret", "key": dataKey}),
-		}
-		return cleanup, events, nil
+	rollbackSecretName := "chaos-rollback-" + key.Name + "-" + dataKey
+	rollbackSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rollbackSecretName,
+			Namespace: namespace,
+			Labels:    safety.ChaosLabels(string(v1alpha1.ConfigDrift)),
+		},
+		Data: map[string][]byte{
+			dataKey: []byte(originalValue),
+		},
+	}
+	if err := d.client.Create(ctx, rollbackSecret); err != nil {
+		return nil, nil, fmt.Errorf("creating rollback Secret %s: %w", rollbackSecretName, err)
 	}
 
-	// Default: ConfigMap
+	rollbackInfo := map[string]string{
+		"resourceType":      "Secret",
+		"key":               dataKey,
+		"rollbackSecretRef": rollbackSecretName,
+	}
+	rollbackStr, err := safety.WrapRollbackData(rollbackInfo)
+	if err != nil {
+		return nil, nil, fmt.Errorf("serializing rollback data for Secret %s: %w", key, err)
+	}
+	safety.ApplyChaosMetadata(secret, rollbackStr, string(v1alpha1.ConfigDrift))
+
+	if err := d.client.Update(ctx, secret); err != nil {
+		return nil, nil, fmt.Errorf("updating Secret %s/%s: %w", key.Namespace, key.Name, err)
+	}
+
+	cleanup := func(ctx context.Context) error {
+		s := &corev1.Secret{}
+		if err := d.client.Get(ctx, key, s); err != nil {
+			return err
+		}
+
+		rbSecret := &corev1.Secret{}
+		rbKey := types.NamespacedName{Name: rollbackSecretName, Namespace: namespace}
+		if err := d.client.Get(ctx, rbKey, rbSecret); err != nil {
+			return fmt.Errorf("reading rollback Secret %s: %w", rollbackSecretName, err)
+		}
+		if s.Data == nil {
+			s.Data = make(map[string][]byte)
+		}
+		s.Data[dataKey] = rbSecret.Data[dataKey]
+
+		safety.RemoveChaosMetadata(s, string(v1alpha1.ConfigDrift))
+
+		if err := d.client.Update(ctx, s); err != nil {
+			return err
+		}
+		return d.client.Delete(ctx, rbSecret)
+	}
+
+	events := []v1alpha1.InjectionEvent{
+		NewEvent(v1alpha1.ConfigDrift, key.String(), "drifted",
+			map[string]string{"resourceType": "Secret", "key": dataKey}),
+	}
+	return cleanup, events, nil
+}
+
+func (d *ConfigDriftInjector) injectConfigMap(ctx context.Context, key types.NamespacedName, dataKey, newValue string) (CleanupFunc, []v1alpha1.InjectionEvent, error) {
 	cm := &corev1.ConfigMap{}
 	if err := d.client.Get(ctx, key, cm); err != nil {
 		return nil, nil, fmt.Errorf("getting ConfigMap %s: %w", key, err)
 	}
-	dataKey := spec.Parameters["key"]
-	originalValue = cm.Data[dataKey]
+	originalValue := cm.Data[dataKey]
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}
-	cm.Data[dataKey] = spec.Parameters["value"]
+	cm.Data[dataKey] = newValue
 
-	// Store rollback annotation for crash-safe recovery
 	rollbackInfo := map[string]string{
 		"resourceType":  "ConfigMap",
 		"key":           dataKey,
@@ -156,7 +153,6 @@ func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 		}
 		c.Data[dataKey] = originalValue
 
-		// Remove rollback annotation and chaos labels
 		safety.RemoveChaosMetadata(c, string(v1alpha1.ConfigDrift))
 
 		return d.client.Update(ctx, c)
@@ -166,6 +162,5 @@ func (d *ConfigDriftInjector) Inject(ctx context.Context, spec v1alpha1.Injectio
 		NewEvent(v1alpha1.ConfigDrift, key.String(), "drifted",
 			map[string]string{"resourceType": "ConfigMap", "key": dataKey}),
 	}
-
 	return cleanup, events, nil
 }

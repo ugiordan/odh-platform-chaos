@@ -18,6 +18,11 @@ import (
 	"github.com/opendatahub-io/odh-platform-chaos/pkg/safety"
 )
 
+const (
+	defaultCleanupTimeout  = 30 * time.Second
+	defaultRecoveryTimeout = 60 * time.Second
+)
+
 // Orchestrator wires together all engines and manages the experiment
 // lifecycle state machine: validation -> lock -> pre-check -> inject ->
 // observe -> post-check -> evaluate -> report -> cleanup.
@@ -196,7 +201,7 @@ func (o *Orchestrator) Run(ctx context.Context, exp *v1alpha1.ChaosExperiment) (
 	defer func() {
 		if cleanup != nil {
 			o.logger.Info("phase transition", "phase", "CLEANUP")
-			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), defaultCleanupTimeout)
 			defer cleanupCancel()
 			if cleanErr := cleanup(cleanupCtx); cleanErr != nil {
 				o.logger.Warn("cleanup warning", "error", cleanErr)
@@ -217,7 +222,7 @@ func (o *Orchestrator) Run(ctx context.Context, exp *v1alpha1.ChaosExperiment) (
 	// Wait for observation period or recovery
 	recoveryTimeout := exp.Spec.Hypothesis.RecoveryTimeout.Duration
 	if recoveryTimeout == 0 {
-		recoveryTimeout = 60 * time.Second
+		recoveryTimeout = defaultRecoveryTimeout
 	}
 
 	var reconciliationResult *observer.ReconciliationResult

@@ -24,6 +24,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const defaultCleanTimeout = 60 * time.Second
+
 // cleanSummary tracks what was cleaned per artifact type.
 type cleanSummary struct {
 	NetworkPolicies   int
@@ -100,7 +102,7 @@ func newCleanCommand() *cobra.Command {
 				return fmt.Errorf("creating k8s client: %w", err)
 			}
 
-			ctx, cancel := context.WithTimeout(cmd.Context(), 60*time.Second)
+			ctx, cancel := context.WithTimeout(cmd.Context(), defaultCleanTimeout)
 			defer cancel()
 
 			summary := runClean(ctx, k8sClient, namespace)
@@ -155,89 +157,77 @@ func runClean(ctx context.Context, k8sClient client.Client, namespace string) cl
 	return summary
 }
 
-func cleanNetworkPolicies(ctx context.Context, k8sClient client.Client, namespace string, labels client.MatchingLabels) int {
-	policies := &networkingv1.NetworkPolicyList{}
-	if err := k8sClient.List(ctx, policies,
-		client.InNamespace(namespace),
-		labels,
-	); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: listing chaos NetworkPolicies: %v\n", err)
+func deleteMatchingResources(
+	ctx context.Context,
+	k8sClient client.Client,
+	list client.ObjectList,
+	extractItems func() []client.Object,
+	kind string,
+	opts ...client.ListOption,
+) int {
+	if err := k8sClient.List(ctx, list, opts...); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: listing chaos %s: %v\n", kind, err)
 		return 0
 	}
 
 	cleaned := 0
-	for i := range policies.Items {
-		fmt.Fprintf(os.Stderr, "Deleting NetworkPolicy %s/%s\n", policies.Items[i].Namespace, policies.Items[i].Name)
-		if err := k8sClient.Delete(ctx, &policies.Items[i]); err != nil {
+	for _, obj := range extractItems() {
+		if ns := obj.GetNamespace(); ns != "" {
+			fmt.Fprintf(os.Stderr, "Deleting %s %s/%s\n", kind, ns, obj.GetName())
+		} else {
+			fmt.Fprintf(os.Stderr, "Deleting %s %s\n", kind, obj.GetName())
+		}
+		if err := k8sClient.Delete(ctx, obj); err != nil {
 			fmt.Fprintf(os.Stderr, "  Warning: %v\n", err)
 		} else {
 			cleaned++
 		}
 	}
 	return cleaned
+}
+
+func cleanNetworkPolicies(ctx context.Context, k8sClient client.Client, namespace string, labels client.MatchingLabels) int {
+	list := &networkingv1.NetworkPolicyList{}
+	return deleteMatchingResources(ctx, k8sClient, list, func() []client.Object {
+		items := make([]client.Object, len(list.Items))
+		for i := range list.Items {
+			items[i] = &list.Items[i]
+		}
+		return items
+	}, "NetworkPolicy", client.InNamespace(namespace), labels)
 }
 
 func cleanLeases(ctx context.Context, k8sClient client.Client, namespace string, labels client.MatchingLabels) int {
-	leases := &coordinationv1.LeaseList{}
-	if err := k8sClient.List(ctx, leases,
-		client.InNamespace(namespace),
-		labels,
-	); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: listing chaos Leases: %v\n", err)
-		return 0
-	}
-
-	cleaned := 0
-	for i := range leases.Items {
-		fmt.Fprintf(os.Stderr, "Deleting Lease %s/%s\n", leases.Items[i].Namespace, leases.Items[i].Name)
-		if err := k8sClient.Delete(ctx, &leases.Items[i]); err != nil {
-			fmt.Fprintf(os.Stderr, "  Warning: %v\n", err)
-		} else {
-			cleaned++
+	list := &coordinationv1.LeaseList{}
+	return deleteMatchingResources(ctx, k8sClient, list, func() []client.Object {
+		items := make([]client.Object, len(list.Items))
+		for i := range list.Items {
+			items[i] = &list.Items[i]
 		}
-	}
-	return cleaned
+		return items
+	}, "Lease", client.InNamespace(namespace), labels)
 }
 
 func cleanClusterRoles(ctx context.Context, k8sClient client.Client, labels client.MatchingLabels) int {
-	roles := &rbacv1.ClusterRoleList{}
-	if err := k8sClient.List(ctx, roles, labels); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: listing chaos ClusterRoles: %v\n", err)
-		return 0
-	}
-
-	cleaned := 0
-	for i := range roles.Items {
-		fmt.Fprintf(os.Stderr, "Deleting ClusterRole %s\n", roles.Items[i].Name)
-		if err := k8sClient.Delete(ctx, &roles.Items[i]); err != nil {
-			fmt.Fprintf(os.Stderr, "  Warning: %v\n", err)
-		} else {
-			cleaned++
+	list := &rbacv1.ClusterRoleList{}
+	return deleteMatchingResources(ctx, k8sClient, list, func() []client.Object {
+		items := make([]client.Object, len(list.Items))
+		for i := range list.Items {
+			items[i] = &list.Items[i]
 		}
-	}
-	return cleaned
+		return items
+	}, "ClusterRole", labels)
 }
 
 func cleanRoleBindings(ctx context.Context, k8sClient client.Client, namespace string, labels client.MatchingLabels) int {
-	bindings := &rbacv1.RoleBindingList{}
-	if err := k8sClient.List(ctx, bindings,
-		client.InNamespace(namespace),
-		labels,
-	); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: listing chaos RoleBindings: %v\n", err)
-		return 0
-	}
-
-	cleaned := 0
-	for i := range bindings.Items {
-		fmt.Fprintf(os.Stderr, "Deleting RoleBinding %s/%s\n", bindings.Items[i].Namespace, bindings.Items[i].Name)
-		if err := k8sClient.Delete(ctx, &bindings.Items[i]); err != nil {
-			fmt.Fprintf(os.Stderr, "  Warning: %v\n", err)
-		} else {
-			cleaned++
+	list := &rbacv1.RoleBindingList{}
+	return deleteMatchingResources(ctx, k8sClient, list, func() []client.Object {
+		items := make([]client.Object, len(list.Items))
+		for i := range list.Items {
+			items[i] = &list.Items[i]
 		}
-	}
-	return cleaned
+		return items
+	}, "RoleBinding", client.InNamespace(namespace), labels)
 }
 
 // cleanWebhookConfigurations finds ValidatingWebhookConfigurations that have a
