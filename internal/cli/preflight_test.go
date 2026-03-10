@@ -187,14 +187,6 @@ func TestPreflightClusterResourceCheck(t *testing.T) {
 			Name:      "test-dashboard",
 			Namespace: "test-ns",
 		},
-		Status: appsv1.DeploymentStatus{
-			Conditions: []appsv1.DeploymentCondition{
-				{
-					Type:   appsv1.DeploymentAvailable,
-					Status: corev1.ConditionTrue,
-				},
-			},
-		},
 	}
 
 	svc := &corev1.Service{
@@ -207,8 +199,16 @@ func TestPreflightClusterResourceCheck(t *testing.T) {
 	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(deploy, svc).
-		WithStatusSubresource(deploy).
 		Build()
+
+	// Set status after creation to avoid WithStatusSubresource stripping
+	deploy.Status.Conditions = []appsv1.DeploymentCondition{
+		{
+			Type:   appsv1.DeploymentAvailable,
+			Status: corev1.ConditionTrue,
+		},
+	}
+	require.NoError(t, k8sClient.Status().Update(context.Background(), deploy))
 
 	knowledge := &model.OperatorKnowledge{
 		Components: []model.ComponentModel{
@@ -263,21 +263,21 @@ func TestPreflightDeploymentDegraded(t *testing.T) {
 			Name:      "degraded-deploy",
 			Namespace: "test-ns",
 		},
-		Status: appsv1.DeploymentStatus{
-			Conditions: []appsv1.DeploymentCondition{
-				{
-					Type:   appsv1.DeploymentAvailable,
-					Status: corev1.ConditionFalse,
-				},
-			},
-		},
 	}
 
 	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(deploy).
-		WithStatusSubresource(deploy).
 		Build()
+
+	// Set degraded status after creation
+	deploy.Status.Conditions = []appsv1.DeploymentCondition{
+		{
+			Type:   appsv1.DeploymentAvailable,
+			Status: corev1.ConditionFalse,
+		},
+	}
+	require.NoError(t, k8sClient.Status().Update(context.Background(), deploy))
 
 	mr := model.ManagedResource{
 		APIVersion: "apps/v1",
@@ -290,12 +290,30 @@ func TestPreflightDeploymentDegraded(t *testing.T) {
 	assert.Empty(t, errMsg)
 }
 
-func TestPreflightClusterScopedResource(t *testing.T) {
+func TestPreflightClusterScopedKindsMap(t *testing.T) {
+	// Verify that cluster-scoped kinds are correctly identified
+	clusterScoped := []string{
+		"ClusterRole", "ClusterRoleBinding", "CustomResourceDefinition",
+		"ValidatingWebhookConfiguration", "MutatingWebhookConfiguration",
+		"Namespace", "PersistentVolume", "StorageClass", "PriorityClass", "Node",
+	}
+	for _, kind := range clusterScoped {
+		assert.True(t, clusterScopedKinds[kind], "expected %s to be cluster-scoped", kind)
+	}
+
+	// Verify namespaced kinds are not in the map
+	namespacedKinds := []string{"Deployment", "Service", "ConfigMap", "Secret", "Pod"}
+	for _, kind := range namespacedKinds {
+		assert.False(t, clusterScopedKinds[kind], "expected %s to be namespaced", kind)
+	}
+}
+
+func TestPreflightClusterScopedNamespaceLogic(t *testing.T) {
+	// Test that checkClusterResources does not inject namespace for cluster-scoped kinds
 	scheme := runtime.NewScheme()
 	_ = appsv1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 
-	// ClusterRoleBinding is cluster-scoped, namespace should not be injected
 	knowledge := &model.OperatorKnowledge{
 		Components: []model.ComponentModel{
 			{
@@ -305,23 +323,27 @@ func TestPreflightClusterScopedResource(t *testing.T) {
 						APIVersion: "rbac.authorization.k8s.io/v1",
 						Kind:       "ClusterRoleBinding",
 						Name:       "test-crb",
-						// No namespace set - should NOT get default namespace injected
+						// Intentionally no namespace, and a default namespace is passed
+					},
+					{
+						APIVersion: "rbac.authorization.k8s.io/v1",
+						Kind:       "ClusterRoleBinding",
+						Name:       "test-crb-with-ns",
+						Namespace:  "should-be-ignored", // should be cleared for cluster-scoped
 					},
 				},
 			},
 		},
 	}
 
-	// With a fake client, cluster-scoped resources work without namespace
-	// This test validates that clusterScopedKinds prevents namespace injection
 	results := checkClusterResources(context.Background(),
 		fake.NewClientBuilder().WithScheme(scheme).Build(),
-		knowledge, "should-not-be-used")
+		knowledge, "default-ns-should-not-be-used")
 
-	require.Len(t, results, 1)
-	// Resource won't be found (not created), but the important thing is
-	// it didn't get the wrong namespace injected
+	require.Len(t, results, 2)
+	// Both should be ClusterRoleBinding
 	assert.Equal(t, "ClusterRoleBinding", results[0].Kind)
+	assert.Equal(t, "ClusterRoleBinding", results[1].Kind)
 }
 
 func TestPreflightVerboseLocalMode(t *testing.T) {

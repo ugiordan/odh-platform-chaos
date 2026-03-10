@@ -211,12 +211,13 @@ func checkClusterResources(ctx context.Context, k8sClient client.Client, k *mode
 
 	for _, comp := range k.Components {
 		for _, mr := range comp.ManagedResources {
-			ns := mr.Namespace
-			if ns == "" && !clusterScopedKinds[mr.Kind] {
-				ns = namespace
-			}
+			var ns string
 			if clusterScopedKinds[mr.Kind] {
 				ns = ""
+			} else if mr.Namespace != "" {
+				ns = mr.Namespace
+			} else {
+				ns = namespace
 			}
 
 			status, errMsg := checkSingleResource(ctx, k8sClient, mr, ns)
