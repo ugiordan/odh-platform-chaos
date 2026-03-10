@@ -238,7 +238,7 @@ func checkClusterResources(ctx context.Context, k8sClient client.Client, k *mode
 // Returns a status string and an optional error message for the "Error" status.
 func checkSingleResource(ctx context.Context, k8sClient client.Client, mr model.ManagedResource, namespace string) (string, string) {
 	// Special handling for Deployments: check health condition
-	if mr.Kind == "Deployment" && (mr.APIVersion == "apps/v1" || mr.APIVersion == "extensions/v1beta1") {
+	if mr.Kind == "Deployment" && mr.APIVersion == "apps/v1" {
 		deploy := &appsv1.Deployment{}
 		err := k8sClient.Get(ctx, client.ObjectKey{Name: mr.Name, Namespace: namespace}, deploy)
 		if err != nil {

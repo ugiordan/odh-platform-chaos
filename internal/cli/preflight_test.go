@@ -346,6 +346,26 @@ func TestPreflightClusterScopedNamespaceLogic(t *testing.T) {
 	assert.Equal(t, "ClusterRoleBinding", results[1].Kind)
 }
 
+func TestPreflightErrorStatusForUnknownGVK(t *testing.T) {
+	// Use a scheme that doesn't know about the requested resource type
+	// This triggers the "Error" status path (non-NotFound error)
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	// Don't add appsv1 - Deployment GVK will be unknown
+
+	mr := model.ManagedResource{
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "unknown-deploy",
+	}
+
+	k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	status, errMsg := checkSingleResource(context.Background(), k8sClient, mr, "test-ns")
+	// The fake client returns an error for unregistered types
+	assert.Equal(t, "Error", status)
+	assert.NotEmpty(t, errMsg)
+}
+
 func TestPreflightVerboseLocalMode(t *testing.T) {
 	path := writeTestKnowledge(t, validKnowledgeYAML)
 	cmd := newPreflightCommand()
