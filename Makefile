@@ -2,10 +2,20 @@ BINARY := odh-chaos
 PKG := github.com/opendatahub-io/odh-platform-chaos
 CMD := ./cmd/odh-chaos
 
-.PHONY: build test test-short lint clean install
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS := -X $(PKG)/internal/cli.Version=$(VERSION)
+
+# Container image settings
+CONTAINER_TOOL ?= podman
+IMAGE_REGISTRY ?= quay.io/opendatahub
+IMAGE_NAME ?= odh-chaos
+IMAGE_TAG ?= $(VERSION)
+IMAGE ?= $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
+
+.PHONY: build test test-short lint clean install container-build container-push
 
 build:
-	go build -o bin/$(BINARY) $(CMD)
+	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) $(CMD)
 
 test:
 	go test -race ./... -v -count=1
@@ -21,3 +31,9 @@ clean:
 
 install: build
 	cp bin/$(BINARY) $(GOPATH)/bin/
+
+container-build:
+	$(CONTAINER_TOOL) build --build-arg VERSION=$(VERSION) -t $(IMAGE) -f Containerfile .
+
+container-push: container-build
+	$(CONTAINER_TOOL) push $(IMAGE)
