@@ -43,6 +43,7 @@ type Orchestrator struct {
 	verbose    bool
 	output     io.Writer
 	logger     *slog.Logger
+	depGraph   *model.DependencyGraph
 }
 
 // OrchestratorConfig holds configuration for creating an Orchestrator.
@@ -55,8 +56,10 @@ type OrchestratorConfig struct {
 	Knowledge  *model.OperatorKnowledge
 	K8sClient  client.Client
 	ReportDir  string
-	Verbose    bool
-	Logger     *slog.Logger
+	Verbose         bool
+	DepGraph        *model.DependencyGraph
+	KnowledgeModels []*model.OperatorKnowledge
+	Logger          *slog.Logger
 }
 
 // ExperimentResult captures the outcome of running a chaos experiment.
@@ -95,6 +98,7 @@ func New(config OrchestratorConfig) *Orchestrator {
 		verbose:    config.Verbose,
 		output:     output,
 		logger:     logger,
+		depGraph:   config.DepGraph,
 	}
 }
 
@@ -223,62 +227,87 @@ func (o *Orchestrator) Run(ctx context.Context, exp *v1alpha1.ChaosExperiment) (
 
 	o.logger.Info("injection complete", "events", len(events))
 
-	// 4. Observe
+	// 4. Observe — two-phase blackboard pattern
 	o.logger.Info("phase transition", "phase", "OBSERVING", "action", "waiting for recovery")
 	result.Phase = v1alpha1.PhaseObserving
 
-	// Wait for observation period or recovery
 	recoveryTimeout := exp.Spec.Hypothesis.RecoveryTimeout.Duration
 	if recoveryTimeout == 0 {
 		recoveryTimeout = defaultRecoveryTimeout
 	}
 
-	var reconciliationResult *observer.ReconciliationResult
+	board := observer.NewObservationBoard()
 
-	// Check reconciliation if knowledge model has the component
+	// Phase 1: Reconciliation (blocking)
 	if o.knowledge != nil {
 		component := o.knowledge.GetComponent(exp.Spec.Target.Component)
 		if component != nil && o.reconciler != nil {
-			reconciliationResult, err = o.reconciler.CheckReconciliation(ctx, component, namespace, recoveryTimeout)
-			if err != nil {
-				o.logger.Warn("reconciliation check error", "error", err)
+			reconContributor := observer.NewReconciliationContributor(o.reconciler, component, namespace, recoveryTimeout)
+			if reconErr := reconContributor.Observe(ctx, board); reconErr != nil {
+				o.logger.Warn("reconciliation contributor error", "error", reconErr)
 			}
 		}
 	}
 
-	// 5. Steady State Post-Check
+	// 5. Steady State Post-Check + Collateral — Phase 2 (concurrent)
 	o.logger.Info("phase transition", "phase", "STEADY_STATE_POST", "action", "verifying recovery")
 	result.Phase = v1alpha1.PhaseSteadyStatePost
 
-	var postCheck *v1alpha1.CheckResult
+	var phase2Contributors []observer.ObservationContributor
+
 	if len(exp.Spec.SteadyState.Checks) > 0 {
-		var postCheckErr error
-		postCheck, postCheckErr = o.observer.CheckSteadyState(ctx, exp.Spec.SteadyState.Checks, namespace)
-		if postCheckErr != nil {
-			o.logger.Warn("post-check error", "error", postCheckErr)
-			postCheck = &v1alpha1.CheckResult{Passed: false, Timestamp: time.Now()}
-		}
+		phase2Contributors = append(phase2Contributors, observer.NewSteadyStateContributor(
+			o.observer, exp.Spec.SteadyState.Checks, namespace))
 	} else {
-		postCheck = &v1alpha1.CheckResult{Passed: true, Timestamp: time.Now()}
+		// No checks defined — write a "passed" finding to preserve existing behavior
+		board.AddFinding(observer.Finding{
+			Source: observer.SourceSteadyState,
+			Passed: true,
+			Checks: &v1alpha1.CheckResult{Passed: true, Timestamp: time.Now()},
+		})
+	}
+
+	if o.depGraph != nil {
+		ref := model.ComponentRef{
+			Operator:  exp.Spec.Target.Operator,
+			Component: exp.Spec.Target.Component,
+		}
+		dependents := o.depGraph.DirectDependents(ref)
+		if len(dependents) > 0 {
+			phase2Contributors = append(phase2Contributors, observer.NewCollateralContributor(
+				o.observer, dependents))
+		}
+	}
+
+	if len(phase2Contributors) > 0 {
+		if errs := observer.RunContributors(ctx, board, phase2Contributors); len(errs) > 0 {
+			for _, e := range errs {
+				o.logger.Warn("phase 2 contributor error", "error", e)
+			}
+		}
 	}
 
 	// 6. Evaluate
 	o.logger.Info("phase transition", "phase", "EVALUATING")
 	result.Phase = v1alpha1.PhaseEvaluating
 
-	allReconciled := true
-	reconcileCycles := 0
-	recoveryTime := time.Duration(0)
-
-	if reconciliationResult != nil {
-		allReconciled = reconciliationResult.AllReconciled
-		reconcileCycles = reconciliationResult.ReconcileCycles
-		recoveryTime = reconciliationResult.RecoveryTime
-	}
-
-	evalResult := o.evaluator.Evaluate(preCheck, postCheck, allReconciled, reconcileCycles, recoveryTime, exp.Spec.Hypothesis)
+	evalResult := o.evaluator.EvaluateFromFindings(board.Findings(), exp.Spec.Hypothesis)
 	result.Evaluation = evalResult
 	result.Verdict = evalResult.Verdict
+
+	// Extract data from board for report
+	var reconciliationResult *observer.ReconciliationResult
+	for _, f := range board.FindingsBySource(observer.SourceReconciliation) {
+		reconciliationResult = f.ReconciliationResult
+	}
+
+	var postCheck *v1alpha1.CheckResult
+	for _, f := range board.FindingsBySource(observer.SourceSteadyState) {
+		postCheck = f.Checks
+	}
+	if postCheck == nil {
+		postCheck = &v1alpha1.CheckResult{Passed: true, Timestamp: time.Now()}
+	}
 
 	// 7. Report
 
@@ -288,6 +317,17 @@ func (o *Orchestrator) Run(ctx context.Context, exp *v1alpha1.ChaosExperiment) (
 		if ev.Target != "" {
 			injectionTargets = append(injectionTargets, ev.Target)
 		}
+	}
+
+	// Build collateral findings for report
+	var collateralFindings []reporter.CollateralFinding
+	for _, f := range board.FindingsBySource(observer.SourceCollateral) {
+		collateralFindings = append(collateralFindings, reporter.CollateralFinding{
+			Operator:  f.Operator,
+			Component: f.Component,
+			Passed:    f.Passed,
+			Checks:    f.Checks,
+		})
 	}
 
 	report := reporter.ExperimentReport{
@@ -309,6 +349,7 @@ func (o *Orchestrator) Run(ctx context.Context, exp *v1alpha1.ChaosExperiment) (
 		},
 		Evaluation:     *evalResult,
 		Reconciliation: reconciliationResult,
+		Collateral:     collateralFindings,
 	}
 	result.Report = &report
 

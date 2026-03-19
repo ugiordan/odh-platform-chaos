@@ -1,0 +1,35 @@
+operator:
+  name: beta-operator
+  namespace: beta-ns
+
+components:
+  - name: beta-main
+    controller: BetaController
+    managedResources:
+      - apiVersion: apps/v1
+        kind: Deployment
+        name: beta-main
+        namespace: beta-ns
+    dependencies:
+      - alpha-operator
+    steadyState:
+      checks:
+        - type: conditionTrue
+          apiVersion: apps/v1
+          kind: Deployment
+          name: beta-main
+          conditionType: Available
+      timeout: "30s"
+
+  - name: beta-worker
+    controller: BetaController
+    managedResources:
+      - apiVersion: apps/v1
+        kind: Deployment
+        name: beta-worker
+        namespace: beta-ns
+    dependencies: []
+
+recovery:
+  reconcileTimeout: "60s"
+  maxReconcileCycles: 5

@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	v1alpha1 "github.com/opendatahub-io/odh-platform-chaos/api/v1alpha1"
 	"github.com/opendatahub-io/odh-platform-chaos/pkg/evaluator"
 	"github.com/opendatahub-io/odh-platform-chaos/pkg/observer"
 )
@@ -21,6 +22,7 @@ type ExperimentReport struct {
 	SteadyState    SteadyStateReport             `json:"steadyState,omitempty"`
 	Reconciliation *observer.ReconciliationResult `json:"reconciliation,omitempty"`
 	CleanupError   string                        `json:"cleanupError,omitempty"`
+	Collateral     []CollateralFinding              `json:"collateral,omitempty"`
 }
 
 // TargetReport describes the target of a chaos experiment.
@@ -42,6 +44,14 @@ type InjectionReport struct {
 type SteadyStateReport struct {
 	Pre  any `json:"pre,omitempty"`
 	Post any `json:"post,omitempty"`
+}
+
+// CollateralFinding represents a collateral damage check result for an operator/component.
+type CollateralFinding struct {
+	Operator  string                `json:"operator"`
+	Component string                `json:"component"`
+	Passed    bool                  `json:"passed"`
+	Checks    *v1alpha1.CheckResult `json:"checks,omitempty"`
 }
 
 // JSONReporter writes experiment reports as JSON.

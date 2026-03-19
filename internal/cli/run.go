@@ -13,7 +13,8 @@ import (
 
 func newRunCommand() *cobra.Command {
 	var (
-		knowledgePath   string
+		knowledgePaths  []string
+		knowledgeDir    string
 		reportDir       string
 		dryRun          bool
 		timeout         time.Duration
@@ -53,7 +54,7 @@ func newRunCommand() *cobra.Command {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			// Build orchestrator and all dependencies
-			deps, err := buildOrchestrator(knowledgePath, dryRun, reportDir, distributedLock, lockNamespace, verbose)
+			deps, err := buildOrchestrator(knowledgePaths, knowledgeDir, dryRun, reportDir, distributedLock, lockNamespace, verbose)
 			if err != nil {
 				return err
 			}
@@ -81,7 +82,8 @@ func newRunCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&knowledgePath, "knowledge", "", "path to operator knowledge YAML")
+	cmd.Flags().StringArrayVar(&knowledgePaths, "knowledge", nil, "path to operator knowledge YAML (repeatable)")
+	cmd.Flags().StringVar(&knowledgeDir, "knowledge-dir", "", "directory of operator knowledge YAMLs")
 	cmd.Flags().StringVar(&reportDir, "report-dir", "", "directory for report output")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate without injecting")
 	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "total experiment timeout")

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	v1alpha1 "github.com/opendatahub-io/odh-platform-chaos/api/v1alpha1"
+	"github.com/opendatahub-io/odh-platform-chaos/pkg/observer"
 )
 
 // Evaluator classifies experiment outcomes into verdicts based on
@@ -33,7 +34,6 @@ func (e *Evaluator) Evaluate(
 		ReconcileCycles: reconcileCycles,
 	}
 
-	// 1. Baseline not established
 	if !preCheck.Passed {
 		result.Verdict = v1alpha1.Inconclusive
 		result.Confidence = fmt.Sprintf(
@@ -42,48 +42,115 @@ func (e *Evaluator) Evaluate(
 		return result
 	}
 
-	// 2. Did it recover?
+	result.Verdict, result.Deviations = e.computeVerdict(postCheck, allReconciled, reconcileCycles, recoveryTime, hypothesis)
+	result.Confidence = fmt.Sprintf(
+		"%d/%d steady-state checks passed, %s recovery, %d reconcile cycles",
+		postCheck.ChecksPassed, postCheck.ChecksRun, recoveryTime, reconcileCycles)
+
+	return result
+}
+
+// EvaluateFromFindings produces a verdict from observer findings, including collateral damage analysis.
+func (e *Evaluator) EvaluateFromFindings(
+	findings []observer.Finding,
+	hypothesis v1alpha1.HypothesisSpec,
+) *EvaluationResult {
+	allReconciled := true
+	reconcileCycles := 0
+	recoveryTime := time.Duration(0)
+
+	for _, f := range findings {
+		if f.Source == observer.SourceReconciliation && f.ReconciliationResult != nil {
+			allReconciled = f.ReconciliationResult.AllReconciled
+			reconcileCycles = f.ReconciliationResult.ReconcileCycles
+			recoveryTime = f.ReconciliationResult.RecoveryTime
+			break
+		}
+	}
+
+	var postCheck *v1alpha1.CheckResult
+	for _, f := range findings {
+		if f.Source == observer.SourceSteadyState {
+			postCheck = f.Checks
+			break
+		}
+	}
+
+	result := &EvaluationResult{
+		RecoveryTime:    recoveryTime,
+		ReconcileCycles: reconcileCycles,
+	}
+
+	if postCheck == nil {
+		result.Verdict = v1alpha1.Inconclusive
+		result.Confidence = "no steady-state post-check data"
+		return result
+	}
+
+	result.Verdict, result.Deviations = e.computeVerdict(postCheck, allReconciled, reconcileCycles, recoveryTime, hypothesis)
+	result.Confidence = fmt.Sprintf(
+		"%d/%d steady-state checks passed, %s recovery, %d reconcile cycles",
+		postCheck.ChecksPassed, postCheck.ChecksRun, recoveryTime, reconcileCycles)
+
+	// Collateral downgrade: only Resilient → Degraded
+	for _, f := range findings {
+		if f.Source == observer.SourceCollateral && !f.Passed {
+			if result.Verdict == v1alpha1.Resilient {
+				result.Verdict = v1alpha1.Degraded
+			}
+			result.Deviations = append(result.Deviations, Deviation{
+				Type:   "collateral_degradation",
+				Detail: fmt.Sprintf("dependent %s/%s degraded", f.Operator, f.Component),
+			})
+		}
+	}
+
+	return result
+}
+
+func (e *Evaluator) computeVerdict(
+	postCheck *v1alpha1.CheckResult,
+	allReconciled bool,
+	reconcileCycles int,
+	recoveryTime time.Duration,
+	hypothesis v1alpha1.HypothesisSpec,
+) (v1alpha1.Verdict, []Deviation) {
+	var verdict v1alpha1.Verdict
+	var deviations []Deviation
+
 	if postCheck.Passed && allReconciled {
-		result.Verdict = v1alpha1.Resilient
+		verdict = v1alpha1.Resilient
 	} else if postCheck.Passed && !allReconciled {
-		result.Verdict = v1alpha1.Degraded
-		result.Deviations = append(result.Deviations, Deviation{
+		verdict = v1alpha1.Degraded
+		deviations = append(deviations, Deviation{
 			Type:   "partial_reconciliation",
 			Detail: "steady state checks passed but not all resources reconciled",
 		})
 	} else {
-		result.Verdict = v1alpha1.Failed
+		verdict = v1alpha1.Failed
 	}
 
-	// 3. Recovery time
 	if recoveryTime > hypothesis.RecoveryTimeout.Duration {
-		if result.Verdict == v1alpha1.Resilient {
-			result.Verdict = v1alpha1.Degraded
+		if verdict == v1alpha1.Resilient {
+			verdict = v1alpha1.Degraded
 		}
-		result.Deviations = append(result.Deviations, Deviation{
+		deviations = append(deviations, Deviation{
 			Type: "slow_recovery",
 			Detail: fmt.Sprintf("recovered in %s, expected within %s",
 				recoveryTime, hypothesis.RecoveryTimeout.Duration),
 		})
 	}
 
-	// 4. Excessive reconcile cycles
 	if e.maxReconcileCycles > 0 && reconcileCycles > e.maxReconcileCycles {
-		if result.Verdict == v1alpha1.Resilient {
-			result.Verdict = v1alpha1.Degraded
+		if verdict == v1alpha1.Resilient {
+			verdict = v1alpha1.Degraded
 		}
-		result.Deviations = append(result.Deviations, Deviation{
+		deviations = append(deviations, Deviation{
 			Type: "excessive_reconciliation",
 			Detail: fmt.Sprintf("%d cycles (max %d)",
 				reconcileCycles, e.maxReconcileCycles),
 		})
 	}
 
-	// 5. Confidence qualifier
-	result.Confidence = fmt.Sprintf(
-		"%d/%d steady-state checks passed, %s recovery, %d reconcile cycles",
-		postCheck.ChecksPassed, postCheck.ChecksRun,
-		recoveryTime, reconcileCycles)
-
-	return result
+	return verdict, deviations
 }

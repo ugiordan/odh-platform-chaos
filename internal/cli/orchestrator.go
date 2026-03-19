@@ -25,14 +25,37 @@ type orchestratorDeps struct {
 // buildOrchestrator creates an Orchestrator and all its dependencies.
 // It handles knowledge loading, K8s client creation, injection registry setup,
 // observer, evaluator, and lock initialization.
-func buildOrchestrator(knowledgePath string, dryRun bool, reportDir string, distributedLock bool, lockNamespace string, verbose bool) (*orchestratorDeps, error) {
-	// Load knowledge (optional)
+func buildOrchestrator(knowledgePaths []string, knowledgeDir string, dryRun bool, reportDir string, distributedLock bool, lockNamespace string, verbose bool) (*orchestratorDeps, error) {
+	// Load knowledge (optional — supports single file, multiple files, or directory)
 	var knowledge *model.OperatorKnowledge
-	if knowledgePath != "" {
+	var allModels []*model.OperatorKnowledge
+	var depGraph *model.DependencyGraph
+
+	if knowledgeDir != "" {
 		var err error
-		knowledge, err = model.LoadKnowledge(knowledgePath)
+		allModels, err = model.LoadKnowledgeDir(knowledgeDir)
 		if err != nil {
-			return nil, fmt.Errorf("loading knowledge: %w", err)
+			return nil, fmt.Errorf("loading knowledge dir: %w", err)
+		}
+	}
+
+	for _, p := range knowledgePaths {
+		k, err := model.LoadKnowledge(p)
+		if err != nil {
+			return nil, fmt.Errorf("loading knowledge %s: %w", p, err)
+		}
+		allModels = append(allModels, k)
+	}
+
+	if len(allModels) > 0 {
+		knowledge = allModels[0]
+	}
+
+	if len(allModels) > 1 {
+		var err error
+		depGraph, err = model.BuildDependencyGraph(allModels)
+		if err != nil {
+			return nil, fmt.Errorf("building dependency graph: %w", err)
 		}
 	}
 
@@ -86,15 +109,17 @@ func buildOrchestrator(knowledgePath string, dryRun bool, reportDir string, dist
 	}
 
 	orch := orchestrator.New(orchestrator.OrchestratorConfig{
-		Registry:   registry,
-		Observer:   observer.NewKubernetesObserver(k8sClient),
-		Reconciler: observer.NewReconciliationChecker(k8sClient),
-		Evaluator:  evaluator.New(maxCycles),
-		Lock:       lock,
-		Knowledge:  knowledge,
-		K8sClient:  k8sClient,
-		ReportDir:  reportDir,
-		Verbose:    verbose,
+		Registry:        registry,
+		Observer:        observer.NewKubernetesObserver(k8sClient),
+		Reconciler:      observer.NewReconciliationChecker(k8sClient),
+		Evaluator:       evaluator.New(maxCycles),
+		Lock:            lock,
+		Knowledge:       knowledge,
+		K8sClient:       k8sClient,
+		ReportDir:       reportDir,
+		Verbose:         verbose,
+		DepGraph:        depGraph,
+		KnowledgeModels: allModels,
 	})
 
 	return &orchestratorDeps{

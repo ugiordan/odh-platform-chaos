@@ -541,7 +541,8 @@ odh-chaos run experiment.yaml [flags]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--knowledge` | Path to operator knowledge YAML | |
+| `--knowledge` | Path to operator knowledge YAML (repeatable) | |
+| `--knowledge-dir` | Directory of knowledge YAMLs (loads all *.yaml) | |
 | `--report-dir` | Directory for report output | |
 | `--dry-run` | Validate without injecting | `false` |
 | `--timeout` | Total experiment timeout | `10m` |
@@ -566,7 +567,8 @@ odh-chaos suite experiments/ [flags]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--knowledge` | Path to operator knowledge YAML | |
+| `--knowledge` | Path to operator knowledge YAML (repeatable) | |
+| `--knowledge-dir` | Directory of knowledge YAMLs (loads all *.yaml) | |
 | `--parallel` | Max concurrent experiments | `1` |
 | `--report-dir` | Directory for report output | |
 | `--dry-run` | Validate without running | `false` |
@@ -632,13 +634,33 @@ Emergency stop: removes all chaos artifacts from the cluster. Finds resources wi
 | Failed | Did not recover or steady-state checks failed |
 | Inconclusive | Could not establish baseline |
 
+## Cross-Component Side-Effect Detection
+
+When injecting chaos on a target component (e.g., killing kserve-controller-manager), dependent components (e.g., llmisvc-controller-manager) may silently degrade. ODH Platform Chaos detects this collateral damage automatically.
+
+**How it works:** Load multiple knowledge files to build a dependency graph. The framework resolves which components depend on the faulted target and checks their steady-state after recovery.
+
+```bash
+# Load all knowledge files from a directory — enables collateral detection
+odh-chaos run experiment.yaml --knowledge-dir knowledge/
+
+# Or load multiple individual files
+odh-chaos run experiment.yaml --knowledge kserve.yaml --knowledge odh-model-controller.yaml
+```
+
+**Dependencies** are declared in knowledge model `components[].dependencies` arrays. Two resolution modes:
+- **Intra-operator**: component name within the same knowledge file (e.g., `llmisvc-controller-manager` depends on `kserve-controller-manager`)
+- **Cross-operator**: operator name across knowledge files (e.g., `odh-model-controller` depends on `kserve`)
+
+**Verdict impact:** Collateral failures downgrade `Resilient` to `Degraded` (never to `Failed`). A collateral failure is a side effect, not the target's own failure. Collateral findings appear in the `collateral` field of experiment reports.
+
 ## Architecture
 
 ```mermaid
 graph TD
     CLI["CLI Layer<br/>run | validate | init | clean | analyze | suite | report | types | version"]
     ORCH["Orchestrator<br/>Experiment Lifecycle State Machine"]
-    INJ["Injection Engine<br/>7 injection types"]
+    INJ["Injection Engine<br/>8 injection types"]
     OBS["Observer<br/>Reconciliation + K8s watches"]
     EVAL["Evaluator<br/>Verdict engine"]
     REP["Reporter<br/>JSON + JUnit output"]
@@ -689,9 +711,9 @@ pkg/
   analyzer/             Go source code analysis
   evaluator/            Verdict engine
   experiment/           Experiment loading and validation
-  injection/            7 injection type implementations
-  model/                Knowledge model types and validation
-  observer/             Reconciliation and K8s resource observation
+  injection/            8 injection type implementations
+  model/                Knowledge model types, validation, DependencyGraph
+  observer/             Reconciliation, K8s resource observation, Blackboard pattern (ObservationBoard, Contributors)
   orchestrator/         Experiment lifecycle state machine
   reporter/             JSON and JUnit report generation
   safety/               Blast radius, TTL, rollback, distributed locks

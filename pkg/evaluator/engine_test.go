@@ -5,6 +5,7 @@ import (
 	"time"
 
 	v1alpha1 "github.com/opendatahub-io/odh-platform-chaos/api/v1alpha1"
+	"github.com/opendatahub-io/odh-platform-chaos/pkg/observer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -77,4 +78,128 @@ func TestEvaluateInconclusive(t *testing.T) {
 	)
 
 	assert.Equal(t, v1alpha1.Inconclusive, result.Verdict)
+}
+
+// --- EvaluateFromFindings tests ---
+
+func defaultHypothesis() v1alpha1.HypothesisSpec {
+	return v1alpha1.HypothesisSpec{RecoveryTimeout: v1alpha1.Duration{Duration: 60 * time.Second}}
+}
+
+func reconFinding(allReconciled bool, cycles int, recovery time.Duration) observer.Finding {
+	return observer.Finding{
+		Source: observer.SourceReconciliation,
+		ReconciliationResult: &observer.ReconciliationResult{
+			AllReconciled:   allReconciled,
+			ReconcileCycles: cycles,
+			RecoveryTime:    recovery,
+		},
+	}
+}
+
+func ssFinding(passed bool, run, passed_ int) observer.Finding {
+	return observer.Finding{
+		Source: observer.SourceSteadyState,
+		Checks: &v1alpha1.CheckResult{Passed: passed, ChecksRun: run, ChecksPassed: passed_},
+	}
+}
+
+func collateralFinding(passed bool, operator, component string) observer.Finding {
+	return observer.Finding{
+		Source:    observer.SourceCollateral,
+		Passed:   passed,
+		Operator: operator,
+		Component: component,
+	}
+}
+
+func TestEvaluateFromFindings_ResilientNoCollateral(t *testing.T) {
+	e := New(10)
+	findings := []observer.Finding{
+		reconFinding(true, 2, 10*time.Second),
+		ssFinding(true, 3, 3),
+	}
+	result := e.EvaluateFromFindings(findings, defaultHypothesis())
+	assert.Equal(t, v1alpha1.Resilient, result.Verdict)
+	assert.Empty(t, result.Deviations)
+}
+
+func TestEvaluateFromFindings_ResilientDowngradedByCollateral(t *testing.T) {
+	e := New(10)
+	findings := []observer.Finding{
+		reconFinding(true, 2, 10*time.Second),
+		ssFinding(true, 3, 3),
+		collateralFinding(false, "opA", "compA"),
+	}
+	result := e.EvaluateFromFindings(findings, defaultHypothesis())
+	assert.Equal(t, v1alpha1.Degraded, result.Verdict)
+	assert.Len(t, result.Deviations, 1)
+	assert.Equal(t, "collateral_degradation", result.Deviations[0].Type)
+}
+
+func TestEvaluateFromFindings_FailedNotDowngradedByCollateral(t *testing.T) {
+	e := New(10)
+	findings := []observer.Finding{
+		reconFinding(false, 0, 120*time.Second),
+		ssFinding(false, 3, 1),
+		collateralFinding(false, "opA", "compA"),
+	}
+	result := e.EvaluateFromFindings(findings, defaultHypothesis())
+	assert.Equal(t, v1alpha1.Failed, result.Verdict)
+}
+
+func TestEvaluateFromFindings_InconclusiveNotDowngradedByCollateral(t *testing.T) {
+	e := New(10)
+	findings := []observer.Finding{
+		collateralFinding(false, "opA", "compA"),
+	}
+	result := e.EvaluateFromFindings(findings, defaultHypothesis())
+	assert.Equal(t, v1alpha1.Inconclusive, result.Verdict)
+	assert.Equal(t, "no steady-state post-check data", result.Confidence)
+}
+
+func TestEvaluateFromFindings_CollateralAllPassNoDowngrade(t *testing.T) {
+	e := New(10)
+	findings := []observer.Finding{
+		reconFinding(true, 2, 10*time.Second),
+		ssFinding(true, 3, 3),
+		collateralFinding(true, "opA", "compA"),
+		collateralFinding(true, "opB", "compB"),
+	}
+	result := e.EvaluateFromFindings(findings, defaultHypothesis())
+	assert.Equal(t, v1alpha1.Resilient, result.Verdict)
+	assert.Empty(t, result.Deviations)
+}
+
+func TestEvaluateFromFindings_DegradedNotChangedByCollateralPass(t *testing.T) {
+	e := New(10)
+	findings := []observer.Finding{
+		reconFinding(false, 2, 10*time.Second),
+		ssFinding(true, 3, 3),
+		collateralFinding(true, "opA", "compA"),
+	}
+	result := e.EvaluateFromFindings(findings, defaultHypothesis())
+	assert.Equal(t, v1alpha1.Degraded, result.Verdict)
+}
+
+func TestEvaluateFromFindings_DegradedNotChangedByCollateralFail(t *testing.T) {
+	e := New(10)
+	findings := []observer.Finding{
+		reconFinding(false, 2, 10*time.Second),
+		ssFinding(true, 3, 3),
+		collateralFinding(false, "opA", "compA"),
+	}
+	result := e.EvaluateFromFindings(findings, defaultHypothesis())
+	assert.Equal(t, v1alpha1.Degraded, result.Verdict)
+}
+
+func TestEvaluateFromFindings_FailedNotChangedByCollateralPass(t *testing.T) {
+	e := New(10)
+	findings := []observer.Finding{
+		reconFinding(true, 2, 10*time.Second),
+		ssFinding(false, 3, 1),
+		collateralFinding(true, "opA", "compA"),
+	}
+	result := e.EvaluateFromFindings(findings, defaultHypothesis())
+	assert.Equal(t, v1alpha1.Failed, result.Verdict)
 }

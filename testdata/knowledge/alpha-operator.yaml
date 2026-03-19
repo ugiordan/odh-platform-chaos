@@ -1,0 +1,43 @@
+operator:
+  name: alpha-operator
+  namespace: alpha-ns
+
+components:
+  - name: alpha-primary
+    controller: AlphaController
+    managedResources:
+      - apiVersion: apps/v1
+        kind: Deployment
+        name: alpha-primary
+        namespace: alpha-ns
+    dependencies: []
+    steadyState:
+      checks:
+        - type: conditionTrue
+          apiVersion: apps/v1
+          kind: Deployment
+          name: alpha-primary
+          conditionType: Available
+      timeout: "30s"
+
+  - name: alpha-secondary
+    controller: AlphaController
+    managedResources:
+      - apiVersion: apps/v1
+        kind: Deployment
+        name: alpha-secondary
+        namespace: alpha-ns
+    dependencies:
+      - alpha-primary
+    steadyState:
+      checks:
+        - type: conditionTrue
+          apiVersion: apps/v1
+          kind: Deployment
+          name: alpha-secondary
+          conditionType: Available
+      timeout: "30s"
+
+recovery:
+  reconcileTimeout: "60s"
+  maxReconcileCycles: 5
