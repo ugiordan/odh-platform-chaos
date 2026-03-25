@@ -38,6 +38,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/v1/operators", s.handleListOperators)
 	s.mux.HandleFunc("GET /api/v1/operators/{operator}/components", s.handleListComponents)
 	s.mux.HandleFunc("GET /api/v1/knowledge/{operator}/{component}", s.handleKnowledge)
+	s.mux.HandleFunc("GET /api/v1/suites", s.handleListSuiteRuns)
+	s.mux.HandleFunc("GET /api/v1/suites/compare", s.handleCompareSuiteRuns)
+	s.mux.HandleFunc("GET /api/v1/suites/{runId}", s.handleGetSuiteRun)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
