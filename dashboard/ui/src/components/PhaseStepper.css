@@ -1,0 +1,71 @@
+.phase-stepper {
+  display: flex;
+  align-items: flex-start;
+  padding: 0 20px 16px;
+}
+
+.step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.step-dot.done {
+  background: #3e8635;
+  color: white;
+}
+
+.step-dot.active {
+  background: #06c;
+  color: white;
+  box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.2);
+  animation: pulse 2s infinite;
+}
+
+.step-dot.pending {
+  background: #f0f0f0;
+  color: #6a6e73;
+}
+
+.step-dot.aborted {
+  background: #c9190b;
+  color: white;
+}
+
+.step-line {
+  width: 40px;
+  height: 2px;
+  margin: 0 8px;
+  align-self: flex-start;
+  margin-top: 13px;
+}
+
+.step-line.done {
+  background: #3e8635;
+}
+
+.step-line.pending {
+  background: #d2d2d2;
+}
+
+.step-label {
+  font-size: 10px;
+  color: #6a6e73;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 102, 204, 0.1);
+  }
+}

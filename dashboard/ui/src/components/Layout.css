@@ -1,0 +1,62 @@
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: #212427;
+  color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-logo {
+  padding: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.app-logo span {
+  color: #e00;
+}
+
+.nav-section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 16px 16px 6px;
+  font-weight: 600;
+}
+
+.nav-item {
+  padding: 10px 16px 10px 24px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  border-left: 3px solid #06c;
+  padding-left: 21px;
+}
+
+.app-content {
+  flex: 1;
+  overflow: auto;
+  background: #f0f0f0;
+}

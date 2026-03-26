@@ -1,0 +1,40 @@
+.coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.coverage-label {
+  font-size: 10px;
+  color: #6a6e73;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.coverage-cell {
+  padding: 8px 4px;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.coverage-cell.tested-pass {
+  background: #e6f9e6;
+  color: #1e4f18;
+}
+
+.coverage-cell.tested-warn {
+  background: #fef3cd;
+  color: #795600;
+}
+
+.coverage-cell.tested-fail {
+  background: #fce8e6;
+  color: #7d1007;
+}
+
+.coverage-cell.not-tested {
+  background: #f0f0f0;
+  color: #6a6e73;
+}

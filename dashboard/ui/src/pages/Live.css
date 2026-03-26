@@ -1,0 +1,130 @@
+.live-header {
+  padding: 20px 24px;
+  background: white;
+  border-bottom: 1px solid #d2d2d2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.live-header h1 {
+  margin: 0;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-header .subtitle {
+  color: #6a6e73;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c9190b;
+  animation: pulse-live 1.5s infinite;
+}
+
+.live-dot.disconnected {
+  background: #6a6e73;
+  animation: none;
+}
+
+@keyframes pulse-live {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(201,25,11,0.4);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 6px rgba(201,25,11,0);
+  }
+}
+
+.live-content {
+  padding: 24px;
+}
+
+.live-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  margin-bottom: 20px;
+  overflow: hidden;
+  border-left: 4px solid #06c;
+}
+
+.live-card.injecting {
+  border-left-color: #f0ab00;
+}
+
+.live-card-header {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.live-card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-card-meta {
+  font-size: 13px;
+  color: #6a6e73;
+  display: flex;
+  gap: 16px;
+}
+
+.live-progress-info {
+  padding: 12px 20px;
+  background: #f8f8f8;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  gap: 24px;
+  font-size: 13px;
+}
+
+.live-progress-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-progress-label {
+  color: #6a6e73;
+}
+
+.live-progress-value {
+  font-weight: 600;
+  color: #151515;
+}
+
+.live-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.live-empty {
+  text-align: center;
+  padding: 60px 24px;
+  color: #6a6e73;
+}
+
+.live-empty h3 {
+  color: #151515;
+  margin: 0 0 8px;
+}
+
+.live-empty p {
+  margin: 0;
+  font-size: 14px;
+}

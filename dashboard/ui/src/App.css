@@ -1,0 +1,74 @@
+:root {
+  --color-resilient-bg: #e6f9e6;
+  --color-resilient-fg: #1e4f18;
+  --color-degraded-bg: #fef3cd;
+  --color-degraded-fg: #795600;
+  --color-failed-bg: #fce8e6;
+  --color-failed-fg: #7d1007;
+  --color-running-bg: #e7f1fa;
+  --color-running-fg: #004080;
+  --color-complete-bg: #e8e8e8;
+  --color-complete-fg: #151515;
+  --color-aborted-bg: #f0f0f0;
+  --color-aborted-fg: #6a6e73;
+  --color-inconclusive-bg: #f5f0ff;
+  --color-inconclusive-fg: #6753ac;
+  --color-pending-bg: #f0f0f0;
+  --color-pending-fg: #6a6e73;
+  --color-primary: #06c;
+  --color-danger: #c9190b;
+  --color-trend-up: #3e8635;
+  --color-trend-down: #c9190b;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+body {
+  margin: 0;
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-resilient { background: var(--color-resilient-bg); color: var(--color-resilient-fg); }
+.badge-degraded { background: var(--color-degraded-bg); color: var(--color-degraded-fg); }
+.badge-failed { background: var(--color-failed-bg); color: var(--color-failed-fg); }
+.badge-inconclusive { background: var(--color-inconclusive-bg); color: var(--color-inconclusive-fg); }
+.badge-running { background: var(--color-running-bg); color: var(--color-running-fg); }
+.badge-complete { background: var(--color-complete-bg); color: var(--color-complete-fg); }
+.badge-aborted { background: var(--color-aborted-bg); color: var(--color-aborted-fg); }
+.badge-pending { background: var(--color-pending-bg); color: var(--color-pending-fg); }
+
+.trend-good { color: var(--color-trend-up); font-size: 11px; font-weight: 600; }
+.trend-bad { color: var(--color-trend-down); font-size: 11px; font-weight: 600; }
+.trend-neutral { color: #6a6e73; font-size: 11px; font-weight: 600; }
+
+.progress-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f0f0f0;
+  flex: 1;
+}
+
+.progress-segment {
+  height: 100%;
+}
+
+.progress-segment.green {
+  background: #3e8635;
+}
+
+.progress-segment.yellow {
+  background: #f0ab00;
+}
+
+.progress-segment.red {
+  background: #c9190b;
+}

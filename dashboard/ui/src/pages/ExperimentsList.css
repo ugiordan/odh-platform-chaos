@@ -1,0 +1,96 @@
+.experiments-header {
+  padding: 20px 24px;
+  background: white;
+  border-bottom: 1px solid #d2d2d2;
+}
+.experiments-header h1 { margin: 0; font-size: 22px; }
+
+.experiments-toolbar {
+  padding: 12px 24px;
+  background: white;
+  border-bottom: 1px solid #d2d2d2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.toolbar-group { display: flex; align-items: center; gap: 8px; }
+.toolbar-label { font-size: 12px; color: #6a6e73; font-weight: 600; }
+.toolbar-select {
+  padding: 6px 28px 6px 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 4px;
+  font-size: 13px;
+  background: white;
+  cursor: pointer;
+}
+.toolbar-search {
+  padding: 6px 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 4px;
+  font-size: 13px;
+  min-width: 200px;
+}
+.toolbar-divider { width: 1px; height: 24px; background: #d2d2d2; margin: 0 4px; }
+
+.experiments-table-wrapper { background: white; margin: 0; }
+.experiment-row { cursor: pointer; }
+.experiment-row:hover { background: #f8f8f8; }
+
+.experiments-pagination {
+  padding: 12px 24px;
+  background: white;
+  border-top: 1px solid #d2d2d2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #6a6e73;
+}
+.pagination-controls { display: flex; gap: 8px; align-items: center; }
+.pagination-btn {
+  padding: 4px 12px;
+  border: 1px solid #d2d2d2;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+.pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.filter-chips {
+  padding: 8px 24px;
+  background: white;
+  border-bottom: 1px solid #d2d2d2;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #e7f1fa;
+  color: #004080;
+  font-size: 12px;
+}
+.filter-chip button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 14px;
+  color: #004080;
+  line-height: 1;
+}
+.clear-all {
+  font-size: 12px;
+  color: #06c;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
