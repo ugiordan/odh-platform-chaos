@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
@@ -89,6 +90,10 @@ func startController(namespace, metricsAddr, healthAddr string, leaderElect bool
 	}
 
 	k8sClient := mgr.GetClient()
+
+	// Register Prometheus metrics collector
+	metricsCollector := controller.NewExperimentCollector(k8sClient)
+	metrics.Registry.MustRegister(metricsCollector)
 
 	// Load knowledge (optional)
 	var knowledge *model.OperatorKnowledge
