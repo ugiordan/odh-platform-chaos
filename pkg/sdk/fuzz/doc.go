@@ -31,4 +31,18 @@
 //   - ChaosClient: The harness wraps a fake client with ChaosClient automatically.
 //   - WrapReconciler: Use for integration/runtime chaos; use this package for fuzz testing.
 //   - TestChaos: Use for manual test setup; use this package for automated fuzz exploration.
+//
+// # Knowledge-Driven Generation
+//
+// The odh-chaos CLI can automatically generate fuzz test scaffolding from
+// operator knowledge models:
+//
+//	odh-chaos generate fuzz-targets --knowledge knowledge/kserve.yaml
+//
+// This generates a compilable Go file with per-component Fuzz* functions,
+// seed objects, invariants, and seed corpus entries derived from the knowledge
+// model. Replace the reconcilerFactory stub with your actual reconciler.
+//
+// See pkg/model.SeedObjects, pkg/model.Invariants, and
+// pkg/model.SeedCorpusEntries for the library functions that power this.
 package fuzz
