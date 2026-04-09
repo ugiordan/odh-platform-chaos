@@ -1927,7 +1927,7 @@
 <li><strong><code>pkg/sdk/fuzz</code></strong> — Property-based testing harness for operator reconciliation</li>
 </ul>
 <h2 id="sdk-package-pkgsdk">SDK Package (<code>pkg/sdk</code>)<a class="headerlink" href="#sdk-package-pkgsdk" title="Permanent link">&para;</a></h2>
-<p><a href="https://pkg.go.dev/github.com/opendatahub-io/odh-platform-chaos/pkg/sdk">:octicons-link-external-16: View on pkg.go.dev</a></p>
+<p><a href="https://pkg.go.dev/github.com/opendatahub-io/odh-platform-chaos/pkg/sdk"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2m6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.75.75 0 0 1-1.042-.018.75.75 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1"/></svg></span> View on pkg.go.dev</a></p>
 <h3 id="chaosclient">ChaosClient<a class="headerlink" href="#chaosclient" title="Permanent link">&para;</a></h3>
 <p><code>ChaosClient</code> wraps a standard <code>controller-runtime</code> client with optional fault injection. It implements the full <code>client.Client</code> interface, making it a drop-in replacement for your operator's Kubernetes client.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="p">(</span>
@@ -2057,7 +2057,7 @@
 <a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">}</span>
 </code></pre></div>
 <h2 id="fault-injection-primitives-pkgsdkfaults">Fault Injection Primitives (<code>pkg/sdk/faults</code>)<a class="headerlink" href="#fault-injection-primitives-pkgsdkfaults" title="Permanent link">&para;</a></h2>
-<p><a href="https://pkg.go.dev/github.com/opendatahub-io/odh-platform-chaos/pkg/sdk/faults">:octicons-link-external-16: View on pkg.go.dev</a></p>
+<p><a href="https://pkg.go.dev/github.com/opendatahub-io/odh-platform-chaos/pkg/sdk/faults"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2m6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.75.75 0 0 1-1.042-.018.75.75 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1"/></svg></span> View on pkg.go.dev</a></p>
 <p>The <code>faults</code> package provides declarative fault injection for common failure modes. These are typically used in integration tests or fuzzing harnesses.</p>
 <h3 id="network-faults">Network Faults<a class="headerlink" href="#network-faults" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="s">&quot;github.com/opendatahub-io/odh-platform-chaos/pkg/sdk/faults&quot;</span>
@@ -2090,7 +2090,7 @@
 <p>These fault primitives can be combined with <code>ChaosClient</code> for comprehensive resilience testing. Use <code>faults.*</code> for system-level failures and <code>ChaosClient</code> for API-level failures.</p>
 </div>
 <h2 id="fuzzing-harness-pkgsdkfuzz">Fuzzing Harness (<code>pkg/sdk/fuzz</code>)<a class="headerlink" href="#fuzzing-harness-pkgsdkfuzz" title="Permanent link">&para;</a></h2>
-<p><a href="https://pkg.go.dev/github.com/opendatahub-io/odh-platform-chaos/pkg/sdk/fuzz">:octicons-link-external-16: View on pkg.go.dev</a></p>
+<p><a href="https://pkg.go.dev/github.com/opendatahub-io/odh-platform-chaos/pkg/sdk/fuzz"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2m6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.75.75 0 0 1-1.042-.018.75.75 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1"/></svg></span> View on pkg.go.dev</a></p>
 <p>The <code>fuzz</code> package provides a property-based testing harness for operator reconciliation logic. It automatically generates random CRD mutations and verifies reconciliation invariants.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="p">(</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="s">&quot;github.com/opendatahub-io/odh-platform-chaos/pkg/sdk/fuzz&quot;</span>
