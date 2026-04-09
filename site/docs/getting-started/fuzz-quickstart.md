@@ -11,13 +11,37 @@ Use Go's native fuzz engine to automatically explore fault combinations your rec
 !!! tip "When to Use Fuzz Testing"
     Use this when you want to find edge cases in your reconciler's error handling during development. The fuzz engine explores thousands of fault combinations automatically, finding panics and logic bugs that manual tests miss.
 
+## Auto-Generate from Knowledge Models
+
+If you have an [operator knowledge model](../guides/knowledge-models.md), you can generate a complete fuzz test file automatically:
+
+```bash
+# Generate to stdout
+odh-chaos generate fuzz-targets --knowledge knowledge/kserve.yaml
+
+# Generate to a file
+odh-chaos generate fuzz-targets --knowledge knowledge/kserve.yaml --output fuzz_kserve_test.go
+```
+
+The generated file contains:
+
+- One `FuzzXxx` function per component (e.g., `FuzzKserveControllerManager`)
+- Seed objects from `managedResources` (Deployments, ConfigMaps, RBAC, etc.)
+- Invariants from `steadyState.checks` and Deployment replicas
+- Seed corpus entries derived from architectural traits (webhooks, finalizers, leader election, dependencies)
+
+You only need to replace the placeholder `reconcilerFactory` function with your actual reconciler constructor.
+
+!!! tip "When to use auto-generation vs manual"
+    Use `generate fuzz-targets` when you already have a knowledge model. It gives the fuzzer architecturally relevant starting points. Write tests manually when you need custom invariants or want to target specific reconciler paths.
+
 ## Prerequisites
 
 - Go 1.18+ (for native fuzzing support)
 - controller-runtime v0.23+
 - No Kubernetes cluster needed (uses fake client)
 
-## Writing a Fuzz Test
+## Writing a Fuzz Test (Manual)
 
 ### Step 1: Implement a ReconcilerFactory
 

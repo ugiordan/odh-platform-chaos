@@ -1,6 +1,7 @@
 name: Deploy Docs
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -10,6 +11,8 @@ on:
       - 'cmd/**'
       - 'internal/cli/**'
       - 'hack/gen-*.go'
+      - 'go.mod'
+      - 'go.sum'
       - 'README.md'
 
 permissions:

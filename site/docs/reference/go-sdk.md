@@ -227,6 +227,58 @@ if err != nil {
 chaosClient := sdk.NewChaosClient(innerClient, config)
 ```
 
+## Knowledge-Driven Generation (`pkg/model`)
+
+The `model` package bridges operator knowledge models to the fuzz SDK. It provides runtime functions for building seed objects and invariants, plus code generation helpers for the CLI.
+
+### SeedObjects
+
+Creates typed K8s objects from an OperatorKnowledge model. Each `ManagedResource` maps to its correct Go type (Deployment, DaemonSet, ConfigMap, etc.), with GVK, name, namespace, and labels populated. Unknown kinds fall back to `Unstructured`.
+
+```go
+import "github.com/opendatahub-io/odh-platform-chaos/pkg/model"
+
+k, _ := model.LoadKnowledge("knowledge/kserve.yaml")
+seeds := model.SeedObjects(k)
+// seeds contains typed client.Object values ready for fake client
+```
+
+### Invariants
+
+Creates `fuzz.Invariant` functions from steady-state checks and Deployment replicas. Objects are `DeepCopy`'d to prevent shared mutable state between invariant closures.
+
+```go
+invariants := model.Invariants(k)
+for _, inv := range invariants {
+    h.AddInvariant(inv)
+}
+```
+
+### SeedCorpusEntries
+
+Encodes architectural traits (webhooks, finalizers, leader election, dependencies) as `(opMask, faultType, intensity)` tuples. These become `f.Add()` calls in generated fuzz tests, giving the fuzzer architecturally relevant starting points.
+
+```go
+entries := model.SeedCorpusEntries(k)
+for _, e := range entries {
+    f.Add(e.OpMask, e.FaultType, e.Intensity)
+}
+```
+
+**Trait mapping:**
+
+| Trait | Operations | Fault Type | Intensity |
+|-------|-----------|------------|-----------|
+| Base (always) | Get, List | connection | 30% |
+| Webhooks | Create, Update | webhook denied | 50% |
+| Finalizers | Delete | conflict | 50% |
+| Leader Election (Lease) | Get, Update | timeout | 40% |
+| Dependencies | Get, List | not-found | 60% |
+
+### Code Generation Helpers
+
+`SeedObjectCode(mr)` and `InvariantCode(kind, name, ns)` return Go source strings for template rendering. These are used by the CLI's `generate fuzz-targets` command.
+
 ## Best Practices
 
 !!! warning "Production Safety"

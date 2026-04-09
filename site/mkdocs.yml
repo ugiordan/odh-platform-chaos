@@ -34,11 +34,6 @@ plugins:
   - search
   - git-revision-date-localized:
       enable_creation_date: true
-  - mkdocstrings:
-      handlers:
-        go:
-          options:
-            show_source: true
 
 markdown_extensions:
   - admonition

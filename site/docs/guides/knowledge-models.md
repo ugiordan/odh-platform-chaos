@@ -600,8 +600,24 @@ The operator is reconciling too many times, indicating inefficient recovery.
 - Race conditions in status updates
 - Missing owner references causing orphaned resources
 
+## Generating Fuzz Tests from Knowledge Models
+
+Knowledge models can automatically generate fuzz test files that exercise your operator's reconciler with architecturally relevant fault combinations:
+
+```bash
+odh-chaos generate fuzz-targets --knowledge knowledge/kserve.yaml --output fuzz_kserve_test.go
+```
+
+The generator reads your knowledge model and produces:
+
+- **Seed objects** from `managedResources` (typed Go objects with labels and expected spec)
+- **Invariants** from `steadyState.checks` (verify resources survive reconciliation)
+- **Seed corpus entries** from architectural traits (webhooks produce webhook-denial seeds, finalizers produce conflict seeds, etc.)
+
+See the [Fuzz Quick Start](../getting-started/fuzz-quickstart.md) for details on the generated test structure, and the [CLI Reference](../reference/cli-commands.md#odh-chaos-generate-fuzz-targets) for command options.
+
 ## Next Steps
 
 - Learn about [Controller Mode](controller-mode.md) to run experiments as CRDs
-- See [End-to-End Testing](../e2e-testing-guide.md) for complete knowledge model examples
+- Generate fuzz tests with [Fuzz Quick Start](../getting-started/fuzz-quickstart.md)
 - Explore the [knowledge/](https://github.com/opendatahub-io/odh-platform-chaos/tree/main/knowledge) directory for real-world examples

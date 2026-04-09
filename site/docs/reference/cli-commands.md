@@ -320,6 +320,80 @@ odh-chaos types [flags]
 
 ---
 
+## odh-chaos generate
+
+Generate code from knowledge models
+
+### Options
+
+```
+  -h, --help   help for generate
+```
+
+### Options inherited from parent commands
+
+```
+      --kubeconfig string   path to kubeconfig file
+      --namespace string    target namespace (default "opendatahub")
+  -v, --verbose             verbose output
+```
+
+#
+
+---
+
+## odh-chaos generate fuzz-targets
+
+Generate fuzz test targets from a knowledge model
+
+### Synopsis
+
+Reads an operator knowledge YAML file and generates a compilable Go fuzz test
+file. The generated file contains one `FuzzXxx` function per component, with
+seed objects, invariants, and seed corpus entries derived from the knowledge
+model's managed resources, steady-state checks, and architectural traits.
+
+The generated code uses `DecodeFaultConfig` to map fuzz bytes to fault
+configurations, so the fuzzer explores architecturally relevant fault
+combinations from the start.
+
+```
+odh-chaos generate fuzz-targets [flags]
+```
+
+### Options
+
+```
+  -h, --help               help for fuzz-targets
+      --knowledge string   path to knowledge YAML file (required)
+      --output string      output file path (defaults to stdout)
+```
+
+### Options inherited from parent commands
+
+```
+      --kubeconfig string   path to kubeconfig file
+      --namespace string    target namespace (default "opendatahub")
+  -v, --verbose             verbose output
+```
+
+### Example
+
+```bash
+# Generate to stdout
+odh-chaos generate fuzz-targets --knowledge knowledge/kserve.yaml
+
+# Generate to a file
+odh-chaos generate fuzz-targets --knowledge knowledge/kserve.yaml --output fuzz_kserve_test.go
+```
+
+The generated file includes a placeholder `reconcilerFactory` function that you
+must replace with your actual reconciler constructor.
+
+#
+
+---
+
 ## odh-chaos validate
 
 Validate experiment or knowledge YAML without running
