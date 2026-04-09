@@ -117,7 +117,7 @@ func (s *SQLiteStore) List(f ListFilter) (ListResult, error) {
 	listArgs := append(args, pageSize, offset)
 	rows, err := s.db.Query(query, listArgs...)
 	if err != nil { return ListResult{}, err }
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	items := []Experiment{}
 	for rows.Next() {
@@ -141,7 +141,7 @@ func (s *SQLiteStore) ListRunning() ([]Experiment, error) {
 		created_at, updated_at FROM experiments WHERE phase IN (%s) ORDER BY start_time DESC`,
 		strings.Join(placeholders, ",")), args...)
 	if err != nil { return nil, err }
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := []Experiment{}
 	for rows.Next() {
 		exp, err := scanExperimentRows(rows)
@@ -189,7 +189,7 @@ func (s *SQLiteStore) AvgRecoveryByType(since *time.Time) ([]RecoveryAvg, error)
 	if since != nil { whereClause += " AND start_time >= ?"; args = append(args, since.Format(time.RFC3339)) }
 	rows, err := s.db.Query(fmt.Sprintf("SELECT injection_type, AVG(recovery_ms) FROM experiments %s GROUP BY injection_type ORDER BY injection_type", whereClause), args...)
 	if err != nil { return nil, err }
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	result := []RecoveryAvg{}
 	for rows.Next() {
 		var r RecoveryAvg
@@ -255,7 +255,7 @@ func (s *SQLiteStore) VerdictTimeline(days int) ([]DayVerdicts, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	result := []DayVerdicts{}
 	for rows.Next() {
 		var dv DayVerdicts
@@ -274,7 +274,7 @@ func (s *SQLiteStore) ListOperators(since *time.Time) ([]string, error) {
 	if since != nil { whereClause = "WHERE start_time >= ?"; args = append(args, since.Format(time.RFC3339)) }
 	rows, err := s.db.Query("SELECT DISTINCT operator FROM experiments "+whereClause+" ORDER BY operator", args...)
 	if err != nil { return nil, err }
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	ops := []string{}
 	for rows.Next() {
 		var op string
@@ -294,7 +294,7 @@ func (s *SQLiteStore) ListByOperator(operator string, since *time.Time) ([]Exper
 		suite_run_id, operator_version, cleanup_error, spec_json, status_json,
 		created_at, updated_at FROM experiments %s ORDER BY start_time DESC`, where), args...)
 	if err != nil { return nil, err }
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := []Experiment{}
 	for rows.Next() {
 		exp, err := scanExperimentRows(rows)
@@ -311,7 +311,7 @@ func (s *SQLiteStore) ListBySuiteRunID(runID string) ([]Experiment, error) {
 		suite_run_id, operator_version, cleanup_error, spec_json, status_json,
 		created_at, updated_at FROM experiments WHERE suite_run_id=? ORDER BY name`, runID)
 	if err != nil { return nil, err }
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := []Experiment{}
 	for rows.Next() {
 		exp, err := scanExperimentRows(rows)
@@ -330,7 +330,7 @@ func (s *SQLiteStore) ListSuiteRuns() ([]SuiteRun, error) {
 		FROM experiments WHERE suite_run_id IS NOT NULL AND suite_run_id != ''
 		GROUP BY suite_name, suite_run_id, operator_version ORDER BY MAX(start_time) DESC`)
 	if err != nil { return nil, err }
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	runs := []SuiteRun{}
 	for rows.Next() {
 		var r SuiteRun
@@ -356,7 +356,7 @@ func (s *SQLiteStore) CompareSuiteRuns(suiteName, runIDA, runIDB string) ([]Expe
 func (s *SQLiteStore) querySuiteExperiments(query, suiteName, runID string) ([]Experiment, error) {
 	rows, err := s.db.Query(query, suiteName, runID)
 	if err != nil { return nil, err }
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	items := []Experiment{}
 	for rows.Next() {
 		exp, err := scanExperimentRows(rows)
