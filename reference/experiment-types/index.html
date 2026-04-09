@@ -2919,17 +2919,16 @@
 </div>
 <hr />
 <h2 id="choosing-the-right-injection-type">Choosing the Right Injection Type<a class="headerlink" href="#choosing-the-right-injection-type" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>flowchart TD
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>    Start[What do you want to test?] --&gt; Q1{Target type?}
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    Q1 --&gt;|Pod crashes| PodKill
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    Q1 --&gt;|Network issues| NetworkPartition
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    Q1 --&gt;|Config changes| ConfigDrift
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    Q1 --&gt;|Spec drift| CRDMutation
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>    Q1 --&gt;|Webhook failure| WebhookDisrupt
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    Q1 --&gt;|Permission loss| RBACRevoke
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    Q1 --&gt;|Stuck deletion| FinalizerBlock
-<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    Q1 --&gt;|API errors| ClientFault
-</code></pre></div>
+<pre class="mermaid"><code>flowchart TD
+    Start[What do you want to test?] --&gt; Q1{Target type?}
+    Q1 --&gt;|Pod crashes| PodKill
+    Q1 --&gt;|Network issues| NetworkPartition
+    Q1 --&gt;|Config changes| ConfigDrift
+    Q1 --&gt;|Spec drift| CRDMutation
+    Q1 --&gt;|Webhook failure| WebhookDisrupt
+    Q1 --&gt;|Permission loss| RBACRevoke
+    Q1 --&gt;|Stuck deletion| FinalizerBlock
+    Q1 --&gt;|API errors| ClientFault</code></pre>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../crd-schema/">CRD Schema Reference</a> — Full CRD specification</li>

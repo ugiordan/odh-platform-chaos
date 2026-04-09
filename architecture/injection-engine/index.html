@@ -1165,6 +1165,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#injection-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Injection Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#method-contracts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1723,6 +1734,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#injection-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Injection Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#method-contracts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2107,6 +2129,31 @@
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nx">Revert</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">spec</span><span class="w"> </span><span class="nx">v1alpha1</span><span class="p">.</span><span class="nx">InjectionSpec</span><span class="p">,</span><span class="w"> </span><span class="nx">namespace</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">}</span>
 </code></pre></div>
+<h3 id="injection-lifecycle">Injection Lifecycle<a class="headerlink" href="#injection-lifecycle" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant O as Orchestrator
+    participant R as Registry
+    participant I as Injector
+    participant K as K8s Resource
+
+    O-&gt;&gt;R: Get(injectionType)
+    R--&gt;&gt;O: injector
+
+    O-&gt;&gt;I: Validate(spec, blast)
+    I--&gt;&gt;O: OK
+
+    O-&gt;&gt;I: Inject(ctx, spec, ns)
+    I-&gt;&gt;K: Apply fault
+    I-&gt;&gt;K: Store rollback annotation
+    I--&gt;&gt;O: CleanupFunc + Events
+
+    Note over O,K: Recovery window...
+
+    O-&gt;&gt;I: Revert(ctx, spec, ns)
+    I-&gt;&gt;K: Read rollback annotation
+    I-&gt;&gt;K: Restore original state
+    I-&gt;&gt;K: Remove chaos metadata
+    I--&gt;&gt;O: OK</code></pre>
 <h3 id="method-contracts">Method Contracts<a class="headerlink" href="#method-contracts" title="Permanent link">&para;</a></h3>
 <h4 id="validatespec-blast-error"><code>Validate(spec, blast) error</code><a class="headerlink" href="#validatespec-blast-error" title="Permanent link">&para;</a></h4>
 <p>Pre-flight validation before injection:</p>
@@ -2541,7 +2588,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="March 30, 2026 11:18:28 UTC">March 30, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 9, 2026 10:38:03 UTC">April 9, 2026</span>
   </span>
 
     
