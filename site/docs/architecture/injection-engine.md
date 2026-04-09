@@ -23,24 +23,38 @@ sequenceDiagram
     participant I as Injector
     participant K as K8s Resource
 
-    O->>R: Get(injectionType)
-    R-->>O: injector
+    rect rgb(227, 242, 253)
+        Note over O,R: Lookup
+        O->>R: Get(injectionType)
+        R-->>O: injector
+    end
 
-    O->>I: Validate(spec, blast)
-    I-->>O: OK
+    rect rgb(243, 229, 245)
+        Note over O,I: Validation
+        O->>I: Validate(spec, blast)
+        I-->>O: OK
+    end
 
-    O->>I: Inject(ctx, spec, ns)
-    I->>K: Apply fault
-    I->>K: Store rollback annotation
-    I-->>O: CleanupFunc + Events
+    rect rgb(255, 243, 224)
+        Note over O,K: Injection
+        O->>I: Inject(ctx, spec, ns)
+        I->>K: Apply fault
+        I->>K: Store rollback annotation
+        I-->>O: CleanupFunc + Events
+    end
 
-    Note over O,K: Recovery window...
+    rect rgb(255, 235, 238)
+        Note over O,K: Recovery window (hypothesis timeout)
+    end
 
-    O->>I: Revert(ctx, spec, ns)
-    I->>K: Read rollback annotation
-    I->>K: Restore original state
-    I->>K: Remove chaos metadata
-    I-->>O: OK
+    rect rgb(232, 245, 233)
+        Note over O,K: Revert
+        O->>I: Revert(ctx, spec, ns)
+        I->>K: Read rollback annotation
+        I->>K: Restore original state
+        I->>K: Remove chaos metadata
+        I-->>O: OK
+    end
 ```
 
 ### Method Contracts

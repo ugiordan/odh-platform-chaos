@@ -7,15 +7,18 @@ Wrap a controller-runtime `client.Client` with fault injection. The `ChaosClient
 
 ```mermaid
 flowchart LR
-    Rec[Reconciler] -->|Get/List/Update/...| CC[ChaosClient]
+    Rec[Reconciler] -->|"Get / List / Update / ..."| CC[ChaosClient]
     CC --> FC{FaultConfig}
-    FC -->|fault fires| ERR[Return ChaosError]
-    FC -->|no fault| RC[Real Client]
+    FC -->|"fault fires"| ERR["ChaosError\n(expected)"]
+    FC -->|"no fault"| RC[Real Client]
     RC --> API[K8s API Server]
 
-    style CC fill:#e65100,color:#fff
-    style ERR fill:#c62828,color:#fff
-    style API fill:#1565c0,color:#fff
+    style Rec fill:#6a1b9a,color:#fff,stroke:#4a148c
+    style CC fill:#e65100,color:#fff,stroke:#bf360c
+    style FC fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#bf360c
+    style ERR fill:#c62828,color:#fff,stroke:#b71c1c
+    style RC fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style API fill:#1565c0,color:#fff,stroke:#0d47a1
 ```
 
 ## Prerequisites
@@ -203,7 +206,4 @@ func TestReconcilerWithConnectionErrors(t *testing.T) {
 
 ## Next Steps
 
-- Explore [predefined fault scenarios](../guides/fault-scenarios.md)
 - Integrate with [fuzz testing](fuzz-quickstart.md)
-- Learn about [reconciler patterns](../concepts/reconciler-patterns.md)
-- Set up [continuous chaos testing](../guides/continuous-chaos.md)

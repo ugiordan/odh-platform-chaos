@@ -91,30 +91,40 @@ odh-chaos preflight --knowledge knowledge/odh-model-controller.yaml
 The suite progresses from low to high danger, validating basic recovery before testing destructive scenarios:
 
 ```mermaid
-flowchart LR
-    subgraph Low Danger
-        A[01 PodKill]
-        B[02 ConfigDrift]
-    end
-    subgraph Medium Danger
-        C[03 NetworkPartition]
-        D[04 CRDMutation]
-        E[05 FinalizerBlock]
-    end
-    subgraph High Danger
-        F[06 RBACRevoke]
-        G[07 WebhookDisrupt]
+flowchart TD
+    subgraph low["Low Danger · validates basic recovery"]
+        A["01 PodKill\nKill controller pods"]
+        B["02 ConfigDrift\nCorrupt ConfigMap data"]
+        A --> B
     end
 
-    A --> B --> C --> D --> E --> F --> G
+    subgraph med["Medium Danger · tests reconciliation under stress"]
+        C["03 NetworkPartition\nIsolate from API server"]
+        D["04 CRDMutation\nMutate InferenceService spec"]
+        E["05 FinalizerBlock\nBlock Deployment deletion"]
+        C --> D --> E
+    end
 
-    style A fill:#2e7d32,color:#fff
-    style B fill:#2e7d32,color:#fff
-    style C fill:#e65100,color:#fff
-    style D fill:#e65100,color:#fff
-    style E fill:#e65100,color:#fff
-    style F fill:#c62828,color:#fff
-    style G fill:#c62828,color:#fff
+    subgraph high["High Danger · cluster-wide impact"]
+        F["06 WebhookDisrupt\nDisrupt admission webhook"]
+        G["07 RBACRevoke\nRevoke controller permissions"]
+        F --> G
+    end
+
+    B --> C
+    E --> F
+
+    style low fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
+    style med fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#bf360c
+    style high fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#b71c1c
+
+    style A fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style B fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style C fill:#e65100,color:#fff,stroke:#bf360c
+    style D fill:#e65100,color:#fff,stroke:#bf360c
+    style E fill:#e65100,color:#fff,stroke:#bf360c
+    style F fill:#c62828,color:#fff,stroke:#b71c1c
+    style G fill:#c62828,color:#fff,stroke:#b71c1c
 ```
 
 Create a directory `experiments/odh-model-controller/` with one YAML per injection type.

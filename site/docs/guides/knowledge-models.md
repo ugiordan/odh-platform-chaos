@@ -187,22 +187,27 @@ components:
 
 ```mermaid
 graph TD
-    subgraph "kserve.yaml (intra-operator)"
-        A[kserve-controller-manager]
-        B[llmisvc-controller-manager]
-        C[kserve-localmodel-controller]
+    subgraph intra["kserve.yaml · intra-operator dependencies"]
+        A["kserve-controller-manager\n(primary controller)"]
+        B["llmisvc-controller-manager\n(LLM inference)"]
+        C["kserve-localmodel-controller\n(model caching)"]
         B -->|depends on| A
         C -->|depends on| A
     end
 
-    subgraph "odh-model-controller.yaml (cross-operator)"
-        D[odh-model-controller]
+    subgraph cross["odh-model-controller.yaml · cross-operator dependency"]
+        D["odh-model-controller\n(model serving lifecycle)"]
     end
 
-    D -->|depends on| A
+    D -->|"cross-operator\ndepends on"| A
 
-    style A fill:#1565c0,color:#fff
-    style D fill:#6a1b9a,color:#fff
+    style intra fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1
+    style cross fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#4a148c
+
+    style A fill:#1565c0,color:#fff,stroke:#0d47a1
+    style B fill:#42a5f5,color:#fff,stroke:#1565c0
+    style C fill:#42a5f5,color:#fff,stroke:#1565c0
+    style D fill:#6a1b9a,color:#fff,stroke:#4a148c
 ```
 
 1. **Intra-operator**: Component name within the same knowledge file (e.g., `llmisvc-controller-manager` depends on `kserve-controller-manager`)

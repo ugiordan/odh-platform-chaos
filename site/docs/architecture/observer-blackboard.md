@@ -31,35 +31,48 @@ Traditional single-observer systems miss the full picture. The blackboard patter
 
 ```mermaid
 graph TB
-    subgraph "Orchestrator"
+    subgraph orch["Orchestrator"]
         Orchestrator[Lifecycle Orchestrator]
     end
 
-    subgraph "Blackboard"
-        Board[ObservationBoard<br/>Shared Data Structure]
+    subgraph bb["Blackboard"]
+        Board["ObservationBoard\n(thread-safe shared state)"]
     end
 
-    subgraph "Phase 1: Reconciliation"
-        Recon[ReconciliationContributor]
+    subgraph p1["Phase 1 · Blocking"]
+        Recon["Reconciliation\nContributor"]
     end
 
-    subgraph "Phase 2: Steady-State & Collateral"
-        Steady[SteadyStateContributor]
-        Collateral[CollateralContributor]
+    subgraph p2["Phase 2 · Concurrent"]
+        Steady["Steady-State\nContributor"]
+        Collateral["Collateral Damage\nContributor"]
     end
 
-    subgraph "Evaluation"
+    subgraph ev["Evaluation"]
         Evaluator[Evaluator]
     end
 
-    Orchestrator -->|1. Create board| Board
-    Orchestrator -->|2. Run Phase 1| Recon
-    Recon -->|3. Write findings| Board
-    Orchestrator -->|4. Run Phase 2| Steady
-    Orchestrator -->|4. Run Phase 2| Collateral
-    Steady -->|5. Write findings| Board
-    Collateral -->|5. Write findings| Board
-    Board -->|6. Read all findings| Evaluator
+    Orchestrator -->|"1. Create board"| Board
+    Orchestrator -->|"2. Run Phase 1"| Recon
+    Recon -->|"3. Write findings"| Board
+    Orchestrator -->|"4. Run Phase 2"| Steady
+    Orchestrator -->|"4. Run Phase 2"| Collateral
+    Steady -->|"5. Write findings"| Board
+    Collateral -->|"5. Write findings"| Board
+    Board -->|"6. Read all findings"| Evaluator
+
+    style orch fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#4a148c
+    style bb fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#bf360c
+    style p1 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1
+    style p2 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
+    style ev fill:#fce4ec,stroke:#c62828,stroke-width:2px,color:#b71c1c
+
+    style Orchestrator fill:#6a1b9a,color:#fff
+    style Board fill:#e65100,color:#fff
+    style Recon fill:#1565c0,color:#fff
+    style Steady fill:#2e7d32,color:#fff
+    style Collateral fill:#2e7d32,color:#fff
+    style Evaluator fill:#c62828,color:#fff
 ```
 
 ## Core Components

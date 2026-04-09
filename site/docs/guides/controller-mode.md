@@ -36,7 +36,14 @@ graph TD
     Orchestrator --> Injector
     Orchestrator --> Observer
     Orchestrator --> Evaluator
-    Evaluator -->|updates| CR
+    Evaluator -->|updates status| CR
+
+    style CR fill:#1565c0,color:#fff,stroke:#0d47a1
+    style Controller fill:#6a1b9a,color:#fff,stroke:#4a148c
+    style Orchestrator fill:#6a1b9a,color:#fff,stroke:#4a148c
+    style Injector fill:#e65100,color:#fff,stroke:#bf360c
+    style Observer fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style Evaluator fill:#c62828,color:#fff,stroke:#b71c1c
 ```
 
 The controller uses the **phase-per-reconcile** pattern: each reconcile loop advances the experiment by exactly one phase, updating `.status.phase` and `.status.conditions`. This ensures crash safety—if the controller restarts, it resumes from the last completed phase.
@@ -48,16 +55,23 @@ Each `ChaosExperiment` CR progresses through these phases:
 ```mermaid
 stateDiagram-v2
     [*] --> Pending: CR Created
-    Pending --> SteadyStatePre: Validation & Lock Acquired
-    SteadyStatePre --> Injecting: Baseline Established
-    SteadyStatePre --> Aborted: Baseline Failed
-    Injecting --> Observing: Fault Injected
-    Injecting --> Aborted: Injection Error
-    Observing --> SteadyStatePost: Recovery Timeout Elapsed
-    SteadyStatePost --> Evaluating: Post-Check Complete
-    Evaluating --> Complete: Verdict Rendered
+
+    state "Happy Path" as happy {
+        Pending --> SteadyStatePre: Validation OK\nLock Acquired
+        SteadyStatePre --> Injecting: Baseline\nEstablished
+        Injecting --> Observing: Fault Injected
+        Observing --> SteadyStatePost: Recovery Timeout\nElapsed
+        SteadyStatePost --> Evaluating: Post-Check\nComplete
+        Evaluating --> Complete: Verdict Rendered
+    }
+
+    state "Error Path" as error {
+        SteadyStatePre --> Aborted: Baseline Failed
+        Injecting --> Aborted: Injection Error
+    }
+
     Complete --> [*]: Finalizer Removed
-    Aborted --> [*]: Cleanup & Finalizer Removed
+    Aborted --> [*]: Cleanup Done
 ```
 
 | Phase | Description | Requeue Behavior |
@@ -226,7 +240,7 @@ spec:
 **Key fields:**
 
 - **`target`**: Which operator/component to fault
-- **`injection`**: Fault type and parameters (see [Injection Types](../reference/injection-types.md))
+- **`injection`**: Fault type and parameters (see [Injection Types](../reference/experiment-types.md))
 - **`hypothesis`**: Expected behavior and recovery timeout
 - **`steadyState`**: Checks to run pre/post injection
 - **`blastRadius`**: Safety constraints
@@ -649,27 +663,6 @@ spec:
       selfHeal: false  # Don't auto-heal to preserve experiment history
 ```
 
-### Dashboard Integration
-
-The [Dashboard](../dashboard-guide.md) watches ChaosExperiment CRs in real time and provides:
-
-- Live experiment progress via Server-Sent Events
-- Experiment history and trend analysis
-- Verdict timeline and recovery metrics
-- Component health visualization
-
-```bash
-# Run the dashboard (assumes knowledge models in knowledge/)
-bin/chaos-dashboard \
-  -addr :8080 \
-  -db dashboard.db \
-  -knowledge-dir knowledge/
-
-# Open http://localhost:8080
-```
-
-The dashboard auto-discovers ChaosExperiment CRs across all namespaces and displays them in a filterable, sortable table.
-
 ## Cleanup
 
 ### Delete a Single Experiment
@@ -758,6 +751,5 @@ kubectl patch chaosexperiment my-experiment -p '{"metadata":{"finalizers":[]}}' 
 ## Next Steps
 
 - Learn about [Knowledge Models](knowledge-models.md) to define operator semantics
-- See [Injection Types](../reference/injection-types.md) for all available fault types
-- Explore [Dashboard Guide](../dashboard-guide.md) for visualization and monitoring
-- Read [CI Integration Guide](../ci-integration-guide.md) for pipeline integration
+- See [Injection Types](../reference/experiment-types.md) for all available fault types
+- Read [CI Integration Guide](ci-integration.md) for pipeline integration

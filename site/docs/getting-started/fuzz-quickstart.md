@@ -39,24 +39,32 @@ You only need to replace the placeholder `reconcilerFactory` function with your 
 
 ```mermaid
 flowchart TD
-    F[Go Fuzz Engine] -->|generates opMask, faultType, intensity| D[DecodeFaultConfig]
+    F["Go Fuzz Engine"] -->|"generates opMask,\nfaultType, intensity"| D[DecodeFaultConfig]
     D --> FC[FaultConfig]
-    FC --> CC[ChaosClient wraps Fake Client]
+    FC --> CC["ChaosClient\nwraps Fake Client"]
 
-    subgraph "Harness.Run()"
+    subgraph harness["Harness.Run()"]
         CC --> R[Run Reconciler]
-        R -->|panic?| FAIL1[FAIL: panic is always a bug]
-        R -->|non-chaos error?| FAIL2[FAIL: real bug in reconciler]
-        R -->|chaos error?| OK1[Expected, continue]
+        R -->|"panic?"| FAIL1["FAIL\npanic is always a bug"]
+        R -->|"non-chaos error?"| FAIL2["FAIL\nreal bug in reconciler"]
+        R -->|"chaos error?"| OK1["Expected\ncontinue"]
         OK1 --> INV[Check Invariants]
-        INV -->|violation?| FAIL3[FAIL: state corrupted]
-        INV -->|all pass| PASS[PASS]
+        INV -->|"violation?"| FAIL3["FAIL\nstate corrupted"]
+        INV -->|"all pass"| PASS["PASS"]
     end
 
-    style FAIL1 fill:#c62828,color:#fff
-    style FAIL2 fill:#c62828,color:#fff
-    style FAIL3 fill:#c62828,color:#fff
-    style PASS fill:#2e7d32,color:#fff
+    style F fill:#1565c0,color:#fff,stroke:#0d47a1
+    style D fill:#6a1b9a,color:#fff,stroke:#4a148c
+    style FC fill:#e65100,color:#fff,stroke:#bf360c
+    style CC fill:#e65100,color:#fff,stroke:#bf360c
+    style harness fill:#f5f5f5,stroke:#616161,stroke-width:2px,color:#424242
+    style R fill:#6a1b9a,color:#fff,stroke:#4a148c
+    style OK1 fill:#1565c0,color:#fff,stroke:#0d47a1
+    style INV fill:#6a1b9a,color:#fff,stroke:#4a148c
+    style FAIL1 fill:#c62828,color:#fff,stroke:#b71c1c
+    style FAIL2 fill:#c62828,color:#fff,stroke:#b71c1c
+    style FAIL3 fill:#c62828,color:#fff,stroke:#b71c1c
+    style PASS fill:#2e7d32,color:#fff,stroke:#1b5e20
 ```
 
 ## Prerequisites
@@ -303,7 +311,4 @@ For regression testing, commit the `testdata/fuzz/` directory to ensure discover
 
 ## Next Steps
 
-- Learn about [reconciler error handling patterns](../concepts/error-handling.md)
 - Integrate with [SDK middleware](sdk-quickstart.md)
-- Set up [continuous fuzzing in CI](../guides/continuous-fuzzing.md)
-- Explore [advanced invariants](../guides/custom-invariants.md)

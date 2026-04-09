@@ -19,26 +19,34 @@ sequenceDiagram
     participant CLI as odh-chaos CLI
     participant K8s as Kubernetes Cluster
 
-    User->>CLI: init --component X --type PodKill
-    CLI-->>User: experiment.yaml
+    rect rgb(227, 242, 253)
+        Note over User,CLI: Setup
+        User->>CLI: init --component X --type PodKill
+        CLI-->>User: experiment.yaml
+        User->>CLI: validate experiment.yaml
+        CLI-->>User: OK / errors
+    end
 
-    User->>CLI: validate experiment.yaml
-    CLI-->>User: OK / errors
+    rect rgb(243, 229, 245)
+        Note over User,K8s: Dry Run
+        User->>CLI: run --dry-run
+        CLI->>K8s: Pre-flight checks (no injection)
+        K8s-->>CLI: Resources verified
+        CLI-->>User: Dry run passed
+    end
 
-    User->>CLI: run --dry-run
-    CLI->>K8s: Pre-flight checks (no injection)
-    K8s-->>CLI: Resources verified
-    CLI-->>User: Dry run passed
-
-    User->>CLI: run experiment.yaml
-    CLI->>K8s: 1. Steady-state baseline
-    K8s-->>CLI: Baseline OK
-    CLI->>K8s: 2. Inject fault
-    CLI->>K8s: 3. Observe recovery
-    K8s-->>CLI: Recovery data
-    CLI->>K8s: 4. Evaluate verdict
-    CLI->>K8s: 5. Cleanup artifacts
-    CLI-->>User: Verdict: Resilient / Degraded / Failed
+    rect rgb(255, 243, 224)
+        Note over User,K8s: Live Experiment
+        User->>CLI: run experiment.yaml
+        CLI->>K8s: 1. Steady-state baseline
+        K8s-->>CLI: Baseline OK
+        CLI->>K8s: 2. Inject fault
+        CLI->>K8s: 3. Observe recovery
+        K8s-->>CLI: Recovery data
+        CLI->>K8s: 4. Evaluate verdict
+        CLI->>K8s: 5. Cleanup artifacts
+        CLI-->>User: Verdict: Resilient / Degraded / Failed
+    end
 ```
 
 ### 1. Generate an Experiment Skeleton
@@ -192,7 +200,5 @@ odh-chaos types
 
 ## Next Steps
 
-- Learn about all [injection types and parameters](../reference/injection-types.md)
-- Understand [knowledge models](../concepts/knowledge-models.md)
-- Set up [safety mechanisms](../concepts/safety.md)
-- Run [experiment suites](../guides/suite-execution.md)
+- Learn about all [injection types and parameters](../reference/experiment-types.md)
+- Understand [knowledge models](../guides/knowledge-models.md)

@@ -113,14 +113,18 @@ Use chaos experiments as a quality gate before promoting a deployment. The workf
 
 ```mermaid
 flowchart LR
-    A[Deploy to Staging] --> B[Wait for Rollout]
-    B --> C[Preflight Check]
-    C --> D[Run Chaos Suite]
-    D -->|All Resilient| E[Deploy to Production]
-    D -->|Any Failed/Degraded| F[Block & Alert]
+    A["Deploy to\nStaging"] --> B["Wait for\nRollout"]
+    B --> C["Preflight\nCheck"]
+    C --> D{"Run Chaos\nSuite"}
+    D -->|All Resilient| E["Deploy to\nProduction"]
+    D -->|Any Failed| F["Block &\nAlert"]
 
-    style E fill:#2e7d32,color:#fff
-    style F fill:#c62828,color:#fff
+    style A fill:#1565c0,color:#fff,stroke:#0d47a1
+    style B fill:#1565c0,color:#fff,stroke:#0d47a1
+    style C fill:#6a1b9a,color:#fff,stroke:#4a148c
+    style D fill:#e65100,color:#fff,stroke:#bf360c
+    style E fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style F fill:#c62828,color:#fff,stroke:#b71c1c
 ```
 
 ```yaml

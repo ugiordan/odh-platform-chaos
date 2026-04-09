@@ -508,14 +508,25 @@ spec:
 ```mermaid
 flowchart TD
     Start[What do you want to test?] --> Q1{Target type?}
-    Q1 -->|Pod crashes| PodKill
-    Q1 -->|Network issues| NetworkPartition
-    Q1 -->|Config changes| ConfigDrift
-    Q1 -->|Spec drift| CRDMutation
-    Q1 -->|Webhook failure| WebhookDisrupt
-    Q1 -->|Permission loss| RBACRevoke
-    Q1 -->|Stuck deletion| FinalizerBlock
-    Q1 -->|API errors| ClientFault
+    Q1 -->|Pod crashes| PK["PodKill\n(low danger)"]
+    Q1 -->|Network issues| NP["NetworkPartition\n(medium danger)"]
+    Q1 -->|Config changes| CD["ConfigDrift\n(low danger)"]
+    Q1 -->|Spec drift| CM["CRDMutation\n(medium danger)"]
+    Q1 -->|Webhook failure| WD["WebhookDisrupt\n(high danger)"]
+    Q1 -->|Permission loss| RR["RBACRevoke\n(high danger)"]
+    Q1 -->|Stuck deletion| FB["FinalizerBlock\n(medium danger)"]
+    Q1 -->|API errors| CF["ClientFault\n(low danger)"]
+
+    style Start fill:#1565c0,color:#fff,stroke:#0d47a1
+    style Q1 fill:#6a1b9a,color:#fff,stroke:#4a148c
+    style PK fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style CD fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style CF fill:#2e7d32,color:#fff,stroke:#1b5e20
+    style NP fill:#e65100,color:#fff,stroke:#bf360c
+    style CM fill:#e65100,color:#fff,stroke:#bf360c
+    style FB fill:#e65100,color:#fff,stroke:#bf360c
+    style WD fill:#c62828,color:#fff,stroke:#b71c1c
+    style RR fill:#c62828,color:#fff,stroke:#b71c1c
 ```
 
 ## Next Steps

@@ -14,38 +14,40 @@ ODH Platform Chaos is a chaos engineering framework designed specifically for te
 
 ```mermaid
 graph TB
-    subgraph "User Interface"
+    subgraph ui["User Interface"]
         CLI[CLI Tool]
         CRD[ChaosExperiment CRD]
         SDK[Go SDK]
     end
 
-    subgraph "Control Plane"
+    subgraph cp["Control Plane"]
         Controller[Experiment Controller]
         Orchestrator[Lifecycle Orchestrator]
         Lock[Experiment Lock]
     end
 
-    subgraph "Injection Engine"
+    subgraph ie["Injection Engine"]
         Registry[Injector Registry]
-        PodKill[PodKill Injector]
-        Network[Network Injector]
-        Config[Config Injector]
-        CRD_Mut[CRD Mutation Injector]
-        Webhook[Webhook Injector]
-        RBAC[RBAC Injector]
-        Finalizer[Finalizer Injector]
-        Client[Client Fault Injector]
+        subgraph injectors[" "]
+            PodKill[PodKill]
+            Network[Network]
+            Config[Config]
+            CRD_Mut[CRD Mutation]
+            Webhook[Webhook]
+            RBAC[RBAC]
+            Finalizer[Finalizer]
+            Client[Client Fault]
+        end
     end
 
-    subgraph "Observation System"
+    subgraph obs["Observation System"]
         Board[Observation Board]
-        Recon[Reconciliation Observer]
-        Steady[Steady-State Observer]
-        Collateral[Collateral Damage Observer]
+        Recon[Reconciliation]
+        Steady[Steady-State]
+        Collateral[Collateral Damage]
     end
 
-    subgraph "Evaluation & Reporting"
+    subgraph eval["Evaluation"]
         Evaluator[Evaluator]
         Reporter[Reporter]
     end
@@ -57,15 +59,7 @@ graph TB
     Controller --> Orchestrator
     Orchestrator --> Lock
     Orchestrator --> Registry
-
-    Registry --> PodKill
-    Registry --> Network
-    Registry --> Config
-    Registry --> CRD_Mut
-    Registry --> Webhook
-    Registry --> RBAC
-    Registry --> Finalizer
-    Registry --> Client
+    Registry --> injectors
 
     Orchestrator --> Board
     Recon --> Board
@@ -75,6 +69,19 @@ graph TB
     Board --> Evaluator
     Evaluator --> Reporter
     Reporter --> Controller
+
+    style ui fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1
+    style cp fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#4a148c
+    style ie fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#bf360c
+    style injectors fill:#fff8e1,stroke:#f9a825,stroke-width:1px
+    style obs fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
+    style eval fill:#fce4ec,stroke:#c62828,stroke-width:2px,color:#b71c1c
+
+    style Controller fill:#7b1fa2,color:#fff
+    style Orchestrator fill:#7b1fa2,color:#fff
+    style Registry fill:#e65100,color:#fff
+    style Board fill:#2e7d32,color:#fff
+    style Evaluator fill:#c62828,color:#fff
 ```
 
 ## Component Breakdown
