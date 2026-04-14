@@ -282,6 +282,7 @@ func (r *ChaosExperimentReconciler) reconcileInject(ctx context.Context, exp *v1
 				return ctrl.Result{}, err
 			}
 		}
+		exp.Status.ObservedGeneration = exp.Generation
 		exp.Status.Phase = v1alpha1.PhaseObserving
 		if err := r.Status().Update(ctx, exp); err != nil {
 			return ctrl.Result{}, err
@@ -310,6 +311,13 @@ func (r *ChaosExperimentReconciler) reconcileInject(ctx context.Context, exp *v1
 	if !controllerutil.ContainsFinalizer(exp, cleanupFinalizer) {
 		controllerutil.AddFinalizer(exp, cleanupFinalizer)
 		if err := r.Update(ctx, exp); err != nil {
+			return ctrl.Result{}, err
+		}
+		// The spec update above increments metadata.generation. Update
+		// ObservedGeneration to match so the mutation detector does not
+		// false-positive on the next reconcile.
+		exp.Status.ObservedGeneration = exp.Generation
+		if err := r.Status().Update(ctx, exp); err != nil {
 			return ctrl.Result{}, err
 		}
 	}

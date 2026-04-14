@@ -28,11 +28,19 @@ func main() {
 	var (
 		addr         = flag.String("addr", ":8080", "HTTP listen address")
 		dbPath       = flag.String("db", "dashboard.db", "SQLite database path")
-		kubeconfig   = flag.String("kubeconfig", "", "Path to kubeconfig (uses in-cluster if empty)")
 		syncInterval = flag.Duration("sync-interval", 30*time.Second, "Interval for K8s sync")
 		knowledgeDir = flag.String("knowledge-dir", "", "Path to directory containing operator knowledge YAML files")
 	)
-	flag.Parse()
+	// Use a separate variable for kubeconfig to avoid conflict with
+	// controller-runtime's init()-registered flag.
+	var kubeconfig string
+	if f := flag.Lookup("kubeconfig"); f != nil {
+		flag.Parse()
+		kubeconfig = f.Value.String()
+	} else {
+		flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig (uses in-cluster if empty)")
+		flag.Parse()
+	}
 
 	s, err := store.NewSQLiteStore(*dbPath)
 	if err != nil {
@@ -45,7 +53,7 @@ func main() {
 		log.Fatalf("adding scheme: %v", err)
 	}
 
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		log.Fatalf("building kubeconfig: %v", err)
 	}
