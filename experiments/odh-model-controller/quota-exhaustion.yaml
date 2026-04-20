@@ -1,0 +1,36 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: odh-model-controller-quota-exhaustion
+spec:
+  target:
+    operator: odh-model-controller
+    component: odh-model-controller
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-model-controller
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: QuotaExhaustion
+    parameters:
+      quotaName: "chaos-quota-odh-model-controller"
+      pods: "0"
+      cpu: "1m"
+      memory: "1Mi"
+    ttl: "120s"
+  hypothesis:
+    description: >-
+      Creating a restrictive ResourceQuota that prevents pod creation should
+      cause the operator to report quota-related errors and retry gracefully
+      instead of crash-looping. When the quota is removed, the operator
+      should resume normal operation.
+    recoveryTimeout: 90s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub

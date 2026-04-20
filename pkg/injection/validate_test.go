@@ -591,6 +591,238 @@ func TestValidateConfigDriftConfigMapResourceType(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestValidateCRDMutationWithPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		spec    v1alpha1.InjectionSpec
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid path",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       "spec.template.managementState",
+					"value":      "Removed",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "single segment path",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       "status",
+					"value":      "Ready",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "both field and path rejected",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"field":      "replicas",
+					"path":       "spec.replicas",
+					"value":      "0",
+				},
+			},
+			wantErr: true,
+			errMsg:  "not both",
+		},
+		{
+			name: "neither field nor path rejected",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"value":      "0",
+				},
+			},
+			wantErr: true,
+			errMsg:  "'field' or 'path'",
+		},
+		{
+			name: "dangerous path metadata.name",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       "metadata.name",
+					"value":      "evil",
+				},
+			},
+			wantErr: true,
+			errMsg:  "resource identity field",
+		},
+		{
+			name: "dangerous path metadata.namespace",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       "metadata.namespace",
+					"value":      "evil",
+				},
+			},
+			wantErr: true,
+			errMsg:  "resource identity field",
+		},
+		{
+			name: "dangerous path metadata.uid",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       "metadata.uid",
+					"value":      "evil",
+				},
+			},
+			wantErr: true,
+			errMsg:  "resource identity field",
+		},
+		{
+			name: "leading dot rejected",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       ".spec.replicas",
+					"value":      "0",
+				},
+			},
+			wantErr: true,
+			errMsg:  "must not start or end with a dot",
+		},
+		{
+			name: "consecutive dots rejected",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       "spec..replicas",
+					"value":      "0",
+				},
+			},
+			wantErr: true,
+			errMsg:  "empty segment",
+		},
+		{
+			name: "sensitive field via path requires danger high",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       "spec.template.replicas",
+					"value":      "0",
+				},
+			},
+			wantErr: true,
+			errMsg:  "sensitive field",
+		},
+		{
+			name: "sensitive field via path allowed with danger high",
+			spec: v1alpha1.InjectionSpec{
+				Type:        v1alpha1.CRDMutation,
+				DangerLevel: v1alpha1.DangerLevelHigh,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       "spec.template.replicas",
+					"value":      "0",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "metadata.labels.app is valid (not dangerous)",
+			spec: v1alpha1.InjectionSpec{
+				Type: v1alpha1.CRDMutation,
+				Parameters: map[string]string{
+					"apiVersion": "test.example.com/v1",
+					"kind":       "TestResource",
+					"name":       "my-resource",
+					"path":       "metadata.labels.app",
+					"value":      "test",
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCRDMutationParams(tt.spec)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateJSONPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantErr bool
+	}{
+		{"valid single segment", "status", false},
+		{"valid two segments", "spec.replicas", false},
+		{"valid deep path", "spec.template.spec.containers", false},
+		{"valid with underscore", "spec.my_field", false},
+		{"empty", "", true},
+		{"leading dot", ".spec", true},
+		{"trailing dot", "spec.", true},
+		{"consecutive dots", "spec..replicas", true},
+		{"invalid segment starts with digit", "spec.123field", true},
+		{"space in segment", "spec.my field", true},
+		{"dangerous metadata.name", "metadata.name", true},
+		{"dangerous apiVersion", "apiVersion", true},
+		{"dangerous kind", "kind", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateJSONPath("path", tt.path)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateFieldName_Invalid(t *testing.T) {
 	tests := []struct {
 		name  string

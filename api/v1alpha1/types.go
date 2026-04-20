@@ -101,7 +101,7 @@ type InjectionSpec struct {
 }
 
 // InjectionType represents the type of fault injection.
-// +kubebuilder:validation:Enum=PodKill;NetworkPartition;CRDMutation;ConfigDrift;WebhookDisrupt;RBACRevoke;FinalizerBlock;ClientFault
+// +kubebuilder:validation:Enum=PodKill;NetworkPartition;CRDMutation;ConfigDrift;WebhookDisrupt;RBACRevoke;FinalizerBlock;ClientFault;OwnerRefOrphan;QuotaExhaustion;WebhookLatency
 type InjectionType string
 
 const (
@@ -113,6 +113,9 @@ const (
 	RBACRevoke       InjectionType = "RBACRevoke"
 	FinalizerBlock   InjectionType = "FinalizerBlock"
 	ClientFault      InjectionType = "ClientFault"
+	OwnerRefOrphan   InjectionType = "OwnerRefOrphan"
+	QuotaExhaustion  InjectionType = "QuotaExhaustion"
+	WebhookLatency   InjectionType = "WebhookLatency"
 )
 
 var validInjectionTypes = map[InjectionType]bool{
@@ -124,6 +127,9 @@ var validInjectionTypes = map[InjectionType]bool{
 	RBACRevoke:       true,
 	FinalizerBlock:   true,
 	ClientFault:      true,
+	OwnerRefOrphan:   true,
+	QuotaExhaustion:  true,
+	WebhookLatency:   true,
 }
 
 // ValidInjectionTypes returns all valid injection types in sorted order.

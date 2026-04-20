@@ -1,0 +1,33 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: workbenches-dependency-dashboard-kill
+spec:
+  target:
+    operator: workbenches
+    component: notebook-controller
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: notebook-controller-deployment
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: PodKill
+    parameters:
+      labelSelector: "app=odh-dashboard"
+    ttl: "300s"
+  hypothesis:
+    description: >-
+      Killing the dashboard (which workbenches integrates with for notebook
+      management UI) should not crash the notebook controller. Workbenches
+      should continue managing existing notebooks and recover when dashboard
+      is restored.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub

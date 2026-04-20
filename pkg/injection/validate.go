@@ -27,6 +27,7 @@ var chaosManagedPrefixes = []string{"chaos-rollback-", "chaos-result-", "operato
 
 var validNamePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9.\-]*[a-z0-9])?$`)
 var validFieldPattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_\-]*$`)
+var validPathSegmentPattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_\-]*$`)
 
 // ValidateTargetSpec validates the target spec fields are valid Kubernetes names.
 func ValidateTargetSpec(target v1alpha1.TargetSpec) error {
@@ -93,6 +94,12 @@ func ValidateInjectionParams(spec v1alpha1.InjectionSpec, blast v1alpha1.BlastRa
 		return validateFinalizerBlockParams(spec)
 	case v1alpha1.ClientFault:
 		return validateClientFaultParams(spec)
+	case v1alpha1.OwnerRefOrphan:
+		return validateOwnerRefOrphanParams(spec)
+	case v1alpha1.QuotaExhaustion:
+		return validateQuotaExhaustionParams(spec)
+	case v1alpha1.WebhookLatency:
+		return validateWebhookLatencyParams(spec)
 	default:
 		return fmt.Errorf("no parameter validation implemented for injection type %q", spec.Type)
 	}
@@ -134,12 +141,29 @@ func validateCRDMutationParams(spec v1alpha1.InjectionSpec) error {
 	if err := rejectChaosManagedResource("CRDMutation", spec.Parameters["name"]); err != nil {
 		return err
 	}
-	if _, ok := spec.Parameters["field"]; !ok {
-		return fmt.Errorf("CRDMutation requires 'field' parameter (JSON path to mutate)")
+
+	// Accept either 'path' (dot-notation like "spec.replicas") or 'field' (legacy, implies spec.{field}).
+	// Both cannot be set simultaneously.
+	hasField := spec.Parameters["field"] != ""
+	hasPath := spec.Parameters["path"] != ""
+	if hasField && hasPath {
+		return fmt.Errorf("CRDMutation accepts either 'field' or 'path' parameter, not both")
 	}
-	if err := validateFieldName("field", spec.Parameters["field"]); err != nil {
-		return err
+	if !hasField && !hasPath {
+		return fmt.Errorf("CRDMutation requires 'field' or 'path' parameter")
 	}
+
+	if hasField {
+		if err := validateFieldName("field", spec.Parameters["field"]); err != nil {
+			return err
+		}
+	}
+	if hasPath {
+		if err := validateJSONPath("path", spec.Parameters["path"]); err != nil {
+			return err
+		}
+	}
+
 	if _, ok := spec.Parameters["value"]; !ok {
 		return fmt.Errorf("CRDMutation requires 'value' parameter (JSON value to set)")
 	}
@@ -164,10 +188,16 @@ func validateCRDMutationParams(spec v1alpha1.InjectionSpec) error {
 		return fmt.Errorf("CRDMutation 'value' of 'null' causes field deletion via merge patch; requires dangerLevel: high")
 	}
 
-	// Reject sensitive spec fields without dangerLevel: high
-	field := spec.Parameters["field"]
-	if sensitiveSpecFields[field] && spec.DangerLevel != v1alpha1.DangerLevelHigh {
-		return fmt.Errorf("CRDMutation targeting sensitive field %q requires dangerLevel: high", field)
+	// Reject sensitive spec fields without dangerLevel: high.
+	// For 'field' param, check the field name directly.
+	// For 'path' param, check the last segment (the leaf field name).
+	targetField := spec.Parameters["field"]
+	if hasPath {
+		segments := strings.Split(spec.Parameters["path"], ".")
+		targetField = segments[len(segments)-1]
+	}
+	if sensitiveSpecFields[targetField] && spec.DangerLevel != v1alpha1.DangerLevelHigh {
+		return fmt.Errorf("CRDMutation targeting sensitive field %q requires dangerLevel: high", targetField)
 	}
 
 	// Block core Kubernetes types unless the experiment has dangerLevel: high
@@ -175,6 +205,52 @@ func validateCRDMutationParams(spec v1alpha1.InjectionSpec) error {
 		if spec.DangerLevel != v1alpha1.DangerLevelHigh {
 			return fmt.Errorf("CRDMutation targeting core Kubernetes type (apiVersion=%s) requires dangerLevel: high", apiVersion)
 		}
+	}
+
+	return nil
+}
+
+// dangerousPaths are JSON paths that must never be mutated by CRDMutation
+// because they would corrupt the resource identity or break Kubernetes internals.
+var dangerousPaths = map[string]bool{
+	"apiVersion":                  true,
+	"kind":                        true,
+	"metadata.name":               true,
+	"metadata.namespace":          true,
+	"metadata.uid":                true,
+	"metadata.resourceVersion":    true,
+	"metadata.generation":         true,
+	"metadata.creationTimestamp":  true,
+	"metadata.deletionTimestamp":  true,
+	"metadata.deletionGracePeriodSeconds": true,
+}
+
+// validateJSONPath validates a dot-notation path for CRDMutation.
+// Paths must have at least one segment, each segment must be a valid field name,
+// and the path must not target dangerous resource identity fields.
+func validateJSONPath(paramName, path string) error {
+	if len(path) == 0 {
+		return fmt.Errorf("%s must not be empty", paramName)
+	}
+	if len(path) > maxNameLength {
+		return fmt.Errorf("%s exceeds maximum length of %d characters", paramName, maxNameLength)
+	}
+	if strings.HasPrefix(path, ".") || strings.HasSuffix(path, ".") {
+		return fmt.Errorf("%s %q must not start or end with a dot", paramName, path)
+	}
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("%s %q contains empty segment (consecutive dots)", paramName, path)
+	}
+
+	segments := strings.Split(path, ".")
+	for _, seg := range segments {
+		if !validPathSegmentPattern.MatchString(seg) {
+			return fmt.Errorf("%s segment %q is not a valid field name", paramName, seg)
+		}
+	}
+
+	if dangerousPaths[path] {
+		return fmt.Errorf("CRDMutation cannot target %q (resource identity field)", path)
 	}
 
 	return nil
@@ -547,6 +623,91 @@ func rejectChaosManagedResource(injType, name string) error {
 	for _, prefix := range chaosManagedPrefixes {
 		if strings.HasPrefix(name, prefix) {
 			return fmt.Errorf("%s cannot target chaos-managed resource %q (prefix %q is reserved)", injType, name, prefix)
+		}
+	}
+	return nil
+}
+
+// ownerRefOrphanForbiddenKinds are resource kinds that should never have
+// their ownerReferences removed.
+var ownerRefOrphanForbiddenKinds = map[string]bool{
+	"Namespace": true,
+	"Node":      true,
+}
+
+func validateOwnerRefOrphanParams(spec v1alpha1.InjectionSpec) error {
+	apiVersion := spec.Parameters["apiVersion"]
+	if apiVersion == "" {
+		return fmt.Errorf("OwnerRefOrphan requires non-empty 'apiVersion' parameter")
+	}
+	kind := spec.Parameters["kind"]
+	if kind == "" {
+		return fmt.Errorf("OwnerRefOrphan requires non-empty 'kind' parameter")
+	}
+	if ownerRefOrphanForbiddenKinds[kind] {
+		return fmt.Errorf("OwnerRefOrphan targeting %q resources is not allowed", kind)
+	}
+	if kind == "ChaosExperiment" && strings.Contains(apiVersion, "chaos.operatorchaos.io") {
+		return fmt.Errorf("OwnerRefOrphan cannot target ChaosExperiment CRs")
+	}
+	name := spec.Parameters["name"]
+	if name == "" {
+		return fmt.Errorf("OwnerRefOrphan requires 'name' parameter")
+	}
+	if err := validateK8sName("name", name); err != nil {
+		return err
+	}
+	return rejectChaosManagedResource("OwnerRefOrphan", name)
+}
+
+func validateQuotaExhaustionParams(spec v1alpha1.InjectionSpec) error {
+	quotaName := spec.Parameters["quotaName"]
+	if quotaName == "" {
+		return fmt.Errorf("QuotaExhaustion requires non-empty 'quotaName' parameter")
+	}
+	if err := validateK8sName("quotaName", quotaName); err != nil {
+		return err
+	}
+	if err := rejectChaosManagedResource("QuotaExhaustion", quotaName); err != nil {
+		return err
+	}
+	// At minimum, one resource limit must be specified
+	hasLimit := false
+	for _, key := range []string{"cpu", "memory", "pods", "services", "configmaps", "secrets"} {
+		if spec.Parameters[key] != "" {
+			hasLimit = true
+			break
+		}
+	}
+	if !hasLimit {
+		return fmt.Errorf("QuotaExhaustion requires at least one resource limit (cpu, memory, pods, services, configmaps, secrets)")
+	}
+	return nil
+}
+
+func validateWebhookLatencyParams(spec v1alpha1.InjectionSpec) error {
+	if spec.DangerLevel != v1alpha1.DangerLevelHigh {
+		return fmt.Errorf("WebhookLatency requires dangerLevel: high (deploys webhook pods)")
+	}
+	resources := spec.Parameters["resources"]
+	if resources == "" {
+		return fmt.Errorf("WebhookLatency requires 'resources' parameter (comma-separated list of resources to intercept, e.g. 'deployments,services')")
+	}
+	apiGroups := spec.Parameters["apiGroups"]
+	if apiGroups == "" {
+		return fmt.Errorf("WebhookLatency requires 'apiGroups' parameter (comma-separated API groups, e.g. 'apps' or '*')")
+	}
+	delay := spec.Parameters["delay"]
+	if delay != "" {
+		d, err := time.ParseDuration(delay)
+		if err != nil {
+			return fmt.Errorf("WebhookLatency: invalid delay %q: %w", delay, err)
+		}
+		if d > 29*time.Second {
+			return fmt.Errorf("WebhookLatency: delay %v exceeds 29s (API server timeout is 30s)", d)
+		}
+		if d < 1*time.Second {
+			return fmt.Errorf("WebhookLatency: delay %v is too short to be useful (minimum 1s)", d)
 		}
 	}
 	return nil

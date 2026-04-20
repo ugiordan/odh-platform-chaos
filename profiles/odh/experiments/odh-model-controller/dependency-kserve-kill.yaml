@@ -1,0 +1,33 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: odh-model-controller-dependency-kserve-kill
+spec:
+  target:
+    operator: odh-model-controller
+    component: odh-model-controller
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-model-controller
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: PodKill
+    parameters:
+      labelSelector: "control-plane=kserve-controller-manager"
+    ttl: "300s"
+  hypothesis:
+    description: >-
+      Killing the kserve-controller-manager (a dependency of odh-model-controller)
+      should cause odh-model-controller to degrade gracefully instead of
+      crash-looping. The controller should report appropriate status conditions
+      and recover once kserve is restored.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub

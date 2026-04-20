@@ -80,6 +80,7 @@ func TestInjectionTypes(t *testing.T) {
 	types := []InjectionType{
 		PodKill, NetworkPartition, CRDMutation, ConfigDrift,
 		WebhookDisrupt, RBACRevoke, FinalizerBlock, ClientFault,
+		OwnerRefOrphan, QuotaExhaustion, WebhookLatency,
 	}
 	for _, it := range types {
 		assert.NotEmpty(t, string(it))
@@ -117,7 +118,7 @@ func TestValidateInjectionType_Typo(t *testing.T) {
 
 func TestValidInjectionTypes_Count(t *testing.T) {
 	types := ValidInjectionTypes()
-	assert.Len(t, types, 8)
+	assert.Len(t, types, 11)
 }
 
 func TestValidInjectionTypes_Sorted(t *testing.T) {

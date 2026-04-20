@@ -92,6 +92,9 @@ func buildOrchestrator(knowledgePaths []string, knowledgeDir string, dryRun bool
 		registry.Register(v1alpha1.RBACRevoke, injection.NewRBACRevokeInjector(k8sClient))
 		registry.Register(v1alpha1.FinalizerBlock, injection.NewFinalizerBlockInjector(k8sClient))
 		registry.Register(v1alpha1.ClientFault, injection.NewClientFaultInjector(k8sClient))
+		registry.Register(v1alpha1.OwnerRefOrphan, injection.NewOwnerRefOrphanInjector(k8sClient))
+		registry.Register(v1alpha1.QuotaExhaustion, injection.NewQuotaExhaustionInjector(k8sClient))
+		registry.Register(v1alpha1.WebhookLatency, injection.NewWebhookLatencyInjector(k8sClient))
 	}
 
 	// Build orchestrator config

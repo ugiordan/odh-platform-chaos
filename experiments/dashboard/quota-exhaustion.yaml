@@ -1,0 +1,33 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: dashboard-quota-exhaustion
+spec:
+  target:
+    operator: dashboard
+    component: odh-dashboard
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-dashboard
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: QuotaExhaustion
+    parameters:
+      quotaName: "chaos-quota-dashboard"
+      pods: "0"
+    ttl: "120s"
+  hypothesis:
+    description: >-
+      Exhausting pod quota in the dashboard namespace should prevent new pods
+      from being created. The operator should handle quota errors gracefully
+      and recover when the quota is removed.
+    recoveryTimeout: 60s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub

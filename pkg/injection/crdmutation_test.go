@@ -503,6 +503,303 @@ func TestCRDMutationInjectTypedValues(t *testing.T) {
 	}
 }
 
+func TestCRDMutationInjectWithPath(t *testing.T) {
+	scheme := runtime.NewScheme()
+	gvk := schema.GroupVersionKind{Group: "test.example.com", Version: "v1", Kind: "TestResource"}
+	scheme.AddKnownTypeWithName(gvk, &unstructured.Unstructured{})
+	scheme.AddKnownTypeWithName(
+		schema.GroupVersionKind{Group: "test.example.com", Version: "v1", Kind: "TestResourceList"},
+		&unstructured.UnstructuredList{},
+	)
+
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(gvk)
+	obj.SetName("path-resource")
+	obj.SetNamespace("test-ns")
+	obj.Object["spec"] = map[string]interface{}{
+		"template": map[string]interface{}{
+			"spec": map[string]interface{}{
+				"replicas": int64(3),
+				"other":    "keep-me",
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(obj).
+		Build()
+
+	injector := NewCRDMutationInjector(fakeClient)
+	ctx := context.Background()
+
+	spec := v1alpha1.InjectionSpec{
+		Type: v1alpha1.CRDMutation,
+		Parameters: map[string]string{
+			"apiVersion": "test.example.com/v1",
+			"kind":       "TestResource",
+			"name":       "path-resource",
+			"path":       "spec.template.spec.replicas",
+			"value":      "0",
+		},
+	}
+
+	cleanup, events, err := injector.Inject(ctx, spec, "test-ns")
+	require.NoError(t, err)
+	require.NotNil(t, cleanup)
+	require.Len(t, events, 1)
+	assert.Equal(t, "spec.template.spec.replicas", events[0].Details["path"])
+
+	// Verify the nested field was mutated
+	current := &unstructured.Unstructured{}
+	current.SetGroupVersionKind(gvk)
+	require.NoError(t, fakeClient.Get(ctx, client_key("path-resource", "test-ns"), current))
+	val, found, err := unstructured.NestedFieldNoCopy(current.Object, "spec", "template", "spec", "replicas")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Equal(t, int64(0), val)
+
+	// Verify sibling field is preserved
+	other, found, _ := unstructured.NestedFieldNoCopy(current.Object, "spec", "template", "spec", "other")
+	require.True(t, found)
+	assert.Equal(t, "keep-me", other)
+
+	// Cleanup should restore
+	require.NoError(t, cleanup(ctx))
+
+	restored := &unstructured.Unstructured{}
+	restored.SetGroupVersionKind(gvk)
+	require.NoError(t, fakeClient.Get(ctx, client_key("path-resource", "test-ns"), restored))
+	restoredVal, found, _ := unstructured.NestedFieldNoCopy(restored.Object, "spec", "template", "spec", "replicas")
+	require.True(t, found)
+	assert.Equal(t, int64(3), restoredVal)
+}
+
+func TestCRDMutationRevertWithPath(t *testing.T) {
+	scheme := runtime.NewScheme()
+	gvk := schema.GroupVersionKind{Group: "test.example.com", Version: "v1", Kind: "TestResource"}
+	scheme.AddKnownTypeWithName(gvk, &unstructured.Unstructured{})
+	scheme.AddKnownTypeWithName(
+		schema.GroupVersionKind{Group: "test.example.com", Version: "v1", Kind: "TestResourceList"},
+		&unstructured.UnstructuredList{},
+	)
+
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(gvk)
+	obj.SetName("revert-path-resource")
+	obj.SetNamespace("test-ns")
+	obj.Object["spec"] = map[string]interface{}{
+		"template": map[string]interface{}{
+			"replicas": int64(5),
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(obj).Build()
+	injector := NewCRDMutationInjector(fakeClient)
+	ctx := context.Background()
+
+	spec := v1alpha1.InjectionSpec{
+		Type: v1alpha1.CRDMutation,
+		Parameters: map[string]string{
+			"apiVersion": "test.example.com/v1",
+			"kind":       "TestResource",
+			"name":       "revert-path-resource",
+			"path":       "spec.template.replicas",
+			"value":      "0",
+		},
+	}
+
+	// Inject then Revert
+	_, _, err := injector.Inject(ctx, spec, "test-ns")
+	require.NoError(t, err)
+
+	err = injector.Revert(ctx, spec, "test-ns")
+	require.NoError(t, err)
+
+	// Verify value restored
+	restored := &unstructured.Unstructured{}
+	restored.SetGroupVersionKind(gvk)
+	require.NoError(t, fakeClient.Get(ctx, client_key("revert-path-resource", "test-ns"), restored))
+	val, found, _ := unstructured.NestedFieldNoCopy(restored.Object, "spec", "template", "replicas")
+	require.True(t, found)
+	assert.Equal(t, int64(5), val)
+}
+
+func TestBuildNestedMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		segments []string
+		value    any
+		expected map[string]any
+	}{
+		{
+			name:     "single segment",
+			segments: []string{"replicas"},
+			value:    int64(3),
+			expected: map[string]any{"replicas": int64(3)},
+		},
+		{
+			name:     "two segments",
+			segments: []string{"spec", "replicas"},
+			value:    int64(0),
+			expected: map[string]any{"spec": map[string]any{"replicas": int64(0)}},
+		},
+		{
+			name:     "three segments",
+			segments: []string{"spec", "template", "replicas"},
+			value:    "test",
+			expected: map[string]any{"spec": map[string]any{"template": map[string]any{"replicas": "test"}}},
+		},
+		{
+			name:     "nil value",
+			segments: []string{"spec", "field"},
+			value:    nil,
+			expected: map[string]any{"spec": map[string]any{"field": nil}},
+		},
+		{
+			name:     "empty segments",
+			segments: []string{},
+			value:    "test",
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildNestedMap(tt.segments, tt.value)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestDeepMerge(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     map[string]any
+		expected map[string]any
+	}{
+		{
+			name: "non-overlapping keys",
+			a:    map[string]any{"spec": map[string]any{"replicas": 3}},
+			b:    map[string]any{"metadata": map[string]any{"labels": map[string]any{"app": "test"}}},
+			expected: map[string]any{
+				"spec":     map[string]any{"replicas": 3},
+				"metadata": map[string]any{"labels": map[string]any{"app": "test"}},
+			},
+		},
+		{
+			name: "overlapping metadata keys are deep-merged",
+			a:    map[string]any{"metadata": map[string]any{"annotations": map[string]any{"custom": "value"}}},
+			b:    map[string]any{"metadata": map[string]any{"labels": map[string]any{"app": "test"}}},
+			expected: map[string]any{
+				"metadata": map[string]any{
+					"annotations": map[string]any{"custom": "value"},
+					"labels":      map[string]any{"app": "test"},
+				},
+			},
+		},
+		{
+			name:     "b overrides non-map values",
+			a:        map[string]any{"key": "old"},
+			b:        map[string]any{"key": "new"},
+			expected: map[string]any{"key": "new"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := deepMerge(tt.a, tt.b)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestCRDMutationInjectMetadataPath(t *testing.T) {
+	// Regression test for I4: ensure metadata paths don't collide with rollback metadata
+	scheme := runtime.NewScheme()
+	gvk := schema.GroupVersionKind{Group: "test.example.com", Version: "v1", Kind: "TestResource"}
+	scheme.AddKnownTypeWithName(gvk, &unstructured.Unstructured{})
+	scheme.AddKnownTypeWithName(
+		schema.GroupVersionKind{Group: "test.example.com", Version: "v1", Kind: "TestResourceList"},
+		&unstructured.UnstructuredList{},
+	)
+
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(gvk)
+	obj.SetName("metadata-test")
+	obj.SetNamespace("test-ns")
+	obj.SetLabels(map[string]string{"existing": "label"})
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(obj).Build()
+	injector := NewCRDMutationInjector(fakeClient)
+	ctx := context.Background()
+
+	spec := v1alpha1.InjectionSpec{
+		Type: v1alpha1.CRDMutation,
+		Parameters: map[string]string{
+			"apiVersion": "test.example.com/v1",
+			"kind":       "TestResource",
+			"name":       "metadata-test",
+			"path":       "metadata.labels.app",
+			"value":      "chaos-injected",
+		},
+	}
+
+	cleanup, _, err := injector.Inject(ctx, spec, "test-ns")
+	require.NoError(t, err)
+
+	// Verify both the injected label AND the rollback annotation exist
+	current := &unstructured.Unstructured{}
+	current.SetGroupVersionKind(gvk)
+	require.NoError(t, fakeClient.Get(ctx, client_key("metadata-test", "test-ns"), current))
+
+	labels := current.GetLabels()
+	assert.Equal(t, "chaos-injected", labels["app"], "injected label should be present")
+
+	annotations := current.GetAnnotations()
+	require.NotNil(t, annotations, "rollback annotation should be present (deepMerge must preserve both)")
+
+	// Cleanup should restore
+	require.NoError(t, cleanup(ctx))
+
+	restored := &unstructured.Unstructured{}
+	restored.SetGroupVersionKind(gvk)
+	require.NoError(t, fakeClient.Get(ctx, client_key("metadata-test", "test-ns"), restored))
+	restoredLabels := restored.GetLabels()
+	assert.Equal(t, "label", restoredLabels["existing"], "existing label should be preserved")
+}
+
+func TestResolveMutationPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		params   map[string]string
+		expected []string
+	}{
+		{
+			name:     "legacy field param",
+			params:   map[string]string{"field": "replicas"},
+			expected: []string{"spec", "replicas"},
+		},
+		{
+			name:     "path param",
+			params:   map[string]string{"path": "spec.template.spec.replicas"},
+			expected: []string{"spec", "template", "spec", "replicas"},
+		},
+		{
+			name:     "single segment path",
+			params:   map[string]string{"path": "status"},
+			expected: []string{"status"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := resolveMutationPath(tt.params)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestParseTypedValue(t *testing.T) {
 	tests := []struct {
 		name     string

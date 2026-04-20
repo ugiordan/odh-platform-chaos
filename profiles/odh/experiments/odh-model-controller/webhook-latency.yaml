@@ -1,0 +1,37 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: odh-model-controller-webhook-latency
+spec:
+  target:
+    operator: odh-model-controller
+    component: odh-model-controller
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-model-controller
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: WebhookLatency
+    dangerLevel: high
+    parameters:
+      resources: "inferenceservices"
+      apiGroups: "serving.kserve.io"
+      delay: "25s"
+    ttl: "180s"
+  hypothesis:
+    description: >-
+      Deploying a slow admission webhook (25s delay, just under the 30s API
+      server timeout) intercepting InferenceService resources should not
+      cause the operator to hang or crash. The operator should handle slow
+      API responses with appropriate timeouts.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub
+    allowDangerous: true

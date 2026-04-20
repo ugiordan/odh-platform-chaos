@@ -1,0 +1,35 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: odh-model-controller-cr-deletion-mid-reconcile
+spec:
+  target:
+    operator: odh-model-controller
+    component: odh-model-controller
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-model-controller
+        namespace: opendatahub
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: ClientFault
+    parameters:
+      faults: '{"get":{"errorRate":0.5,"error":"not found","delay":"2s"}}'
+      configMapName: "operator-chaos-cr-deletion"
+    ttl: "120s"
+  hypothesis:
+    description: >-
+      Injecting intermittent "not found" errors with 2s delay on GET operations
+      simulates CR deletion during active reconciliation. The controller should
+      handle nil-pointer scenarios gracefully without panicking or crash-looping.
+      This is a common source of bugs in poorly written controllers. Requires
+      ChaosClient SDK integration in the target operator.
+    recoveryTimeout: 60s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub
