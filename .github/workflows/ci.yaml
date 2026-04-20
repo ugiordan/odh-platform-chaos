@@ -42,24 +42,23 @@ jobs:
       - name: Create dashboard UI placeholder
         run: mkdir -p dashboard/ui-dist && echo '<!-- placeholder -->' > dashboard/ui-dist/index.html
       - name: Build CLI
-        run: go build -o bin/odh-chaos ./cmd/odh-chaos
+        run: go build -o bin/operator-chaos ./cmd/operator-chaos
       - name: Validate experiment files
         shell: bash
         run: |
-          if [ ! -d experiments ]; then
-            echo "ERROR: experiments/ directory not found"
-            exit 1
-          fi
           count=0
           status=0
-          while IFS= read -r -d '' file; do
-            count=$((count + 1))
-            if ! bin/odh-chaos validate "$file"; then
-              status=1
-            fi
-          done < <(find experiments \( -name '*.yaml' -o -name '*.yml' \) -print0)
+          for dir in experiments profiles/*/experiments; do
+            [ -d "$dir" ] || continue
+            while IFS= read -r -d '' file; do
+              count=$((count + 1))
+              if ! bin/operator-chaos validate "$file"; then
+                status=1
+              fi
+            done < <(find "$dir" \( -name '*.yaml' -o -name '*.yml' \) -print0)
+          done
           if [ "$count" -eq 0 ]; then
-            echo "ERROR: no experiment YAML files found in experiments/"
+            echo "ERROR: no experiment YAML files found"
             exit 1
           fi
           echo "Validated $count experiment files"

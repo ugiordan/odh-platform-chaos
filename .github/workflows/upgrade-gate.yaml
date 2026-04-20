@@ -34,7 +34,7 @@ jobs:
           fi
       - name: Run playbook
         run: |
-          bin/odh-chaos playbook run \
+          bin/operator-chaos playbook run \
             --playbook "${{ inputs.playbook }}" \
             --allow-shell --skip-manual \
             --report-dir /tmp/upgrade-results/
