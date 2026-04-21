@@ -1,0 +1,35 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: rhoai-dashboard-rbac-revoke
+spec:
+  target:
+    operator: dashboard
+    component: rhods-dashboard
+    resource: ClusterRoleBinding/rhods-dashboard
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: rhods-dashboard
+        namespace: redhat-ods-applications
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: RBACRevoke
+    dangerLevel: high
+    parameters:
+      bindingName: rhods-dashboard
+      bindingType: ClusterRoleBinding
+    count: 1
+    ttl: "120s"
+  hypothesis:
+    description: >-
+      When the dashboard ClusterRoleBinding subjects are revoked,
+      the dashboard should lose API access but the pods should stay
+      running. The operator should reconcile the binding back.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 5
+    allowDangerous: true

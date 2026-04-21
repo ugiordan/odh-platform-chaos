@@ -1,0 +1,34 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: rhoai-workbenches-pod-kill
+spec:
+  target:
+    operator: workbenches
+    component: odh-notebook-controller
+    resource: Deployment/odh-notebook-controller-manager
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-notebook-controller-manager
+        namespace: redhat-ods-applications
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: PodKill
+    parameters:
+      labelSelector: app=odh-notebook-controller
+    count: 1
+    ttl: "300s"
+  hypothesis:
+    description: >-
+      When the odh-notebook-controller pod is killed, the Deployment
+      should recreate it and the controller should resume webhook
+      serving within the recovery timeout.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - redhat-ods-applications

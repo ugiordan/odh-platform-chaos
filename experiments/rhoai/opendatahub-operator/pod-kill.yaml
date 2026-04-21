@@ -1,0 +1,34 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: rhoai-operator-pod-kill
+spec:
+  target:
+    operator: opendatahub-operator
+    component: rhods-operator
+    resource: Deployment/rhods-operator
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: rhods-operator
+        namespace: redhat-ods-operator
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: PodKill
+    parameters:
+      labelSelector: name=rhods-operator
+    count: 1
+    ttl: "300s"
+  hypothesis:
+    description: >-
+      When the RHOAI operator pod is killed, the Deployment should
+      recreate it and the operator should resume reconciliation
+      within the recovery timeout.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - redhat-ods-operator

@@ -1,0 +1,34 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: rhoai-dashboard-pod-kill
+spec:
+  target:
+    operator: dashboard
+    component: rhods-dashboard
+    resource: Deployment/rhods-dashboard
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: rhods-dashboard
+        namespace: redhat-ods-applications
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: PodKill
+    parameters:
+      labelSelector: app=rhods-dashboard
+    count: 1
+    ttl: "300s"
+  hypothesis:
+    description: >-
+      When one rhods-dashboard pod is killed, the remaining replica should
+      continue serving traffic. Kubernetes should recreate the killed pod
+      within the recovery timeout and the deployment should return to ready.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - redhat-ods-applications

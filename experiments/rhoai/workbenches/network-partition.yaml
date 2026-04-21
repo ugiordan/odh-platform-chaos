@@ -1,0 +1,35 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: rhoai-workbenches-network-partition
+spec:
+  target:
+    operator: workbenches
+    component: odh-notebook-controller
+    resource: Deployment/odh-notebook-controller-manager
+  steadyState:
+    checks:
+      - type: conditionTrue
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-notebook-controller-manager
+        namespace: redhat-ods-applications
+        conditionType: Available
+    timeout: "30s"
+  injection:
+    type: NetworkPartition
+    parameters:
+      labelSelector: app=odh-notebook-controller
+    count: 1
+    ttl: "120s"
+  hypothesis:
+    description: >-
+      When network traffic to the notebook controller is blocked,
+      existing notebooks should continue running but new notebook
+      operations will fail. Controller should recover once the
+      NetworkPolicy is removed.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 5
+    allowedNamespaces:
+      - redhat-ods-applications
