@@ -18,6 +18,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -73,8 +74,15 @@ func startController(namespace, metricsAddr, healthAddr string, leaderElect bool
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Cache: cache.Options{
-			DefaultNamespaces: map[string]cache.Config{
-				namespace: {},
+			// ChaosExperiment CRs are only watched in the controller's namespace,
+			// but other resources (Pods, Deployments, ConfigMaps, etc.) are cached
+			// cluster-wide so injections can target any namespace.
+			ByObject: map[client.Object]cache.ByObject{
+				&v1alpha1.ChaosExperiment{}: {
+					Namespaces: map[string]cache.Config{
+						namespace: {},
+					},
+				},
 			},
 		},
 		Metrics: metricsserver.Options{

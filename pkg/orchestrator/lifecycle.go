@@ -102,10 +102,11 @@ func New(config OrchestratorConfig) *Orchestrator {
 //  2. single allowedNamespaces entry (unambiguous intent)
 //  3. first steady-state check namespace (common in single-namespace experiments)
 //  4. DefaultNamespace fallback
+// resolveNamespace determines the target namespace for injection.
+// Priority: spec-level hints (allowedNamespaces, steady-state check namespace)
+// take precedence over the CR's metadata namespace, because in controller mode
+// the CR lives in the controller's namespace, not the injection target namespace.
 func resolveNamespace(exp *v1alpha1.ChaosExperiment) string {
-	if exp.Namespace != "" {
-		return exp.Namespace
-	}
 	if len(exp.Spec.BlastRadius.AllowedNamespaces) == 1 {
 		return exp.Spec.BlastRadius.AllowedNamespaces[0]
 	}
@@ -113,6 +114,9 @@ func resolveNamespace(exp *v1alpha1.ChaosExperiment) string {
 		if check.Namespace != "" {
 			return check.Namespace
 		}
+	}
+	if exp.Namespace != "" {
+		return exp.Namespace
 	}
 	return v1alpha1.DefaultNamespace
 }
