@@ -54,7 +54,7 @@ sequenceDiagram
 Create a basic experiment configuration:
 
 ```bash
-operator-chaos init --component odh-model-controller --type PodKill > experiment.yaml
+operator-chaos init --operator my-operator --component odh-model-controller --type PodKill > experiment.yaml
 ```
 
 This generates a skeleton experiment YAML that you can customize.
@@ -95,7 +95,7 @@ The framework will:
 
 #### Running on RHOAI Clusters
 
-Experiment YAML files default to the `opendatahub` namespace. When running on RHOAI clusters (which use `redhat-ods-applications`), use the `--namespace` flag to override all namespace references in the experiment:
+Experiment YAML files default to the `default` namespace. When running on RHOAI clusters (which use `redhat-ods-applications`), or ODH clusters (which use `opendatahub`), use the `--namespace` flag to override all namespace references in the experiment:
 
 ```bash
 operator-chaos run experiment.yaml \
@@ -203,6 +203,9 @@ The CLI supports multiple fault injection types:
 | `WebhookDisrupt` | Change webhook failure policy | High |
 | `RBACRevoke` | Revoke RBAC binding subjects | High |
 | `ClientFault` | Inject API-level faults into client operations | Medium |
+| `OwnerRefOrphan` | Remove ownerReferences to test re-adoption | Medium |
+| `QuotaExhaustion` | Create restrictive ResourceQuota | Medium |
+| `WebhookLatency` | Deploy slow admission webhook | High |
 
 List all types with:
 

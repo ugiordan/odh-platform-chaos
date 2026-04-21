@@ -38,7 +38,7 @@ Run structured chaos experiments against a live cluster. The CLI orchestrates th
 
 ```bash
 # Generate an experiment skeleton
-operator-chaos init --component odh-model-controller --type PodKill > experiment.yaml
+operator-chaos init --component my-controller --operator my-operator --type PodKill > experiment.yaml
 
 # Validate the experiment YAML
 operator-chaos validate experiment.yaml
@@ -281,7 +281,7 @@ operator:
   namespace: string     # required: namespace where the operator runs
   repository: string    # optional: source repository URL
   version: string       # optional: operator version (e.g. "3.3.1")
-  platform: string      # optional: platform identifier ("rhoai" or "odh")
+  platform: string      # optional: platform identifier (e.g. "rhoai", "odh", "community")
   olmChannel: string    # optional: OLM subscription channel (e.g. "stable-3.3")
 
 components:
@@ -473,7 +473,8 @@ Mutate a field on any Kubernetes resource. **Danger: medium**
 | `apiVersion` | Yes | Resource API version |
 | `kind` | Yes | Resource kind |
 | `name` | Yes | Resource name |
-| `field` | Yes | JSON field name to mutate |
+| `path` | No | Dot-notation JSON path (e.g. `spec.replicas`, `metadata.labels.app`). Use this or `field`. |
+| `field` | No | Legacy: spec field name (auto-prefixed with `spec.`). Use `path` for new experiments. |
 | `value` | Yes | JSON value to set |
 
 ```yaml
@@ -553,6 +554,66 @@ injection:
     faults: '{"get":{"errorRate":0.3,"error":"connection refused"},"list":{"maxDelay":"2s"}}'
 ```
 
+### OwnerRefOrphan
+
+Remove ownerReferences from managed resources, simulating orphaned resources that the operator must re-adopt. **Danger: medium**
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `apiVersion` | Yes | Resource API version |
+| `kind` | Yes | Resource kind |
+| `name` | Yes | Resource name |
+| `ttl` | No | Duration before restoring ownerRef |
+
+```yaml
+injection:
+  type: OwnerRefOrphan
+  parameters:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-controller
+```
+
+### QuotaExhaustion
+
+Create a ResourceQuota that prevents the operator from creating or scaling resources. **Danger: medium**
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `quotaName` | Yes | Name for the injected ResourceQuota |
+| `cpu` | No | CPU limit (e.g. "0") |
+| `memory` | No | Memory limit (e.g. "0") |
+| `pods` | No | Pod count limit (e.g. "0") |
+| `ttl` | No | Duration before removing quota |
+
+```yaml
+injection:
+  type: QuotaExhaustion
+  parameters:
+    quotaName: chaos-quota
+    pods: "0"
+```
+
+### WebhookLatency
+
+Inject artificial latency into webhook responses by deploying a slow webhook proxy. **Danger: high**
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `resources` | Yes | Comma-separated resources to intercept (e.g. "deployments,services") |
+| `apiGroups` | No | API groups to match (e.g. "apps") |
+| `delay` | Yes | Latency to inject (e.g. "5s") |
+| `ttl` | No | Duration before removing the slow webhook |
+
+```yaml
+injection:
+  type: WebhookLatency
+  parameters:
+    resources: deployments,services
+    apiGroups: apps
+    delay: "5s"
+```
+
 ## CLI Reference
 
 | Command | Description |
@@ -584,7 +645,7 @@ These flags apply to all commands:
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--kubeconfig` | Path to kubeconfig file | `~/.kube/config` |
-| `--namespace` | Target namespace | `opendatahub` |
+| `--namespace` | Target namespace | `default` |
 | `-v`, `--verbose` | Verbose output | `false` |
 
 ### run
@@ -601,7 +662,7 @@ operator-chaos run experiment.yaml [flags]
 | `--dry-run` | Validate without injecting | `false` |
 | `--timeout` | Total experiment timeout | `10m` |
 | `--distributed-lock` | Use Kubernetes Lease-based distributed locking | `false` |
-| `--lock-namespace` | Namespace for distributed lock leases | `opendatahub` |
+| `--lock-namespace` | Namespace for distributed lock leases | `default` |
 
 ### validate
 
@@ -628,7 +689,7 @@ operator-chaos suite <experiments-directory> [flags]
 | `--dry-run` | Validate without running | `false` |
 | `--timeout` | Timeout per experiment | `10m` |
 | `--distributed-lock` | Use Kubernetes Lease-based distributed locking | `false` |
-| `--lock-namespace` | Namespace for distributed lock leases | `opendatahub` |
+| `--lock-namespace` | Namespace for distributed lock leases | `default` |
 
 ### analyze
 
@@ -699,8 +760,8 @@ operator-chaos init [flags]
 |------|-------------|---------|
 | `--component` | Component name (required) | |
 | `--type` | Injection type | `PodKill` |
-| `--operator` | Operator name | `opendatahub-operator` |
-| `--namespace` | Target namespace | `opendatahub` |
+| `--operator` | Operator name (required) | |
+| `--namespace` | Target namespace | `default` |
 
 Generates a skeleton experiment YAML to stdout. Customize the output for your operator and injection type.
 
@@ -771,7 +832,7 @@ operator-chaos run experiment.yaml --knowledge kserve.yaml --knowledge odh-model
 graph TD
     CLI["CLI Layer<br/>run | validate | init | clean | analyze | suite | report | types | diff | version"]
     ORCH["Orchestrator<br/>Experiment Lifecycle State Machine"]
-    INJ["Injection Engine<br/>8 injection types"]
+    INJ["Injection Engine<br/>11 injection types"]
     OBS["Observer<br/>Reconciliation + K8s watches"]
     EVAL["Evaluator<br/>Verdict engine"]
     REP["Reporter<br/>JSON + JUnit output"]
@@ -849,7 +910,7 @@ dashboard/
   ui/                   React 18 + TypeScript frontend (Vite)
   embed.go              go:embed for serving built UI assets
 knowledge/              Operator knowledge YAML files (versioned: odh/v2.10, rhoai/v3.3)
-experiments/            Pre-built experiment suites (40 experiments)
+experiments/            Pre-built experiment suites (81 experiments)
 ```
 
 ## Dashboard
@@ -907,7 +968,7 @@ All endpoints are read-only (`GET`), prefixed with `/api/v1/`.
 | `/suites/:runId` | Experiments in a suite run |
 | `/suites/compare?suite=X&runA=Y&runB=Z` | Version comparison |
 
-For full dashboard documentation, see [Dashboard Guide](docs/dashboard-guide.md).
+For full dashboard documentation, see the [Dashboard Guide](https://ugiordan.github.io/operator-chaos/guides/dashboard-operator/).
 
 ## Quick Start
 
@@ -923,7 +984,7 @@ go install github.com/opendatahub-io/operator-chaos/cmd/operator-chaos@latest
 
 2. Generate an experiment:
 ```bash
-operator-chaos init --component odh-model-controller --type PodKill > experiment.yaml
+operator-chaos init --component my-controller --operator my-operator --type PodKill > experiment.yaml
 ```
 
 3. Validate both files:
@@ -965,9 +1026,11 @@ go test ./... -fuzz=FuzzMyReconciler -fuzztime=30s
 
 ## Further Reading
 
-- [End-to-End Testing Guide](docs/e2e-testing-guide.md) - Full walkthrough with knowledge models, all injection types, suite execution, and expected verdicts for odh-model-controller and kserve
-- [Dashboard Guide](docs/dashboard-guide.md) - Detailed dashboard setup, views, API reference, and deployment options
-- [CI Integration Guide](docs/ci-integration-guide.md) - GitHub Actions, Tekton, JUnit reporting, and exit code conventions
+- [Documentation Site](https://ugiordan.github.io/operator-chaos/) - Full documentation with guides, architecture, and API reference
+- [E2E Testing Guide](https://ugiordan.github.io/operator-chaos/guides/e2e-testing/) - Full walkthrough with knowledge models, all injection types, suite execution, and expected verdicts
+- [Dashboard Guide](https://ugiordan.github.io/operator-chaos/guides/dashboard-operator/) - Dashboard setup, views, API reference, and deployment options
+- [CI Integration Guide](https://ugiordan.github.io/operator-chaos/guides/ci-integration/) - GitHub Actions, Tekton, JUnit reporting, and exit code conventions
+- [Upgrade Testing Guide](https://ugiordan.github.io/operator-chaos/guides/upgrade-testing/) - Version diff engine, upgrade playbooks, and simulation
 - [Go Fuzz Testing](https://go.dev/doc/security/fuzz/) - Go's native fuzz testing documentation (required for understanding `testing.F`)
 
 ## Contributing

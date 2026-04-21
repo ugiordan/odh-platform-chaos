@@ -54,15 +54,17 @@ This compiles all packages and ensures there are no syntax or type errors.
 ### Build the CLI
 
 ```bash
-go build -o bin/chaos-cli ./cmd/cli
+go build -o bin/operator-chaos ./cmd/operator-chaos
 ```
 
-The `chaos-cli` binary will be placed in `bin/chaos-cli`.
+The binary will be placed in `bin/operator-chaos`.
 
 ### Build the Controller
 
+The controller is the same binary, started with `controller start`:
+
 ```bash
-go build -o bin/chaos-controller ./cmd/controller
+bin/operator-chaos controller start
 ```
 
 ## Run Tests
@@ -139,25 +141,25 @@ operator-chaos/
 ### Run an Experiment
 
 ```bash
-./bin/chaos-cli run experiments/podkill-basic.yaml
+./bin/operator-chaos run experiments/podkill-basic.yaml
 ```
 
 ### Validate an Experiment
 
 ```bash
-./bin/chaos-cli validate experiments/podkill-basic.yaml
+./bin/operator-chaos validate experiments/podkill-basic.yaml
 ```
 
 ### List Available Injection Types
 
 ```bash
-./bin/chaos-cli list-types
+./bin/operator-chaos types
 ```
 
 ### Generate Report
 
 ```bash
-./bin/chaos-cli run experiments/podkill-basic.yaml --report-dir=./reports
+./bin/operator-chaos run experiments/podkill-basic.yaml --report-dir=./reports
 ```
 
 Reports are saved as JSON files in the specified directory.
@@ -194,7 +196,7 @@ kubectl get crd chaosexperiments.chaos.operatorchaos.io
 
 ```bash
 export KUBECONFIG=~/.kube/config
-./bin/chaos-controller
+operator-chaos controller start
 ```
 
 The controller will watch for `ChaosExperiment` resources and reconcile them.
@@ -230,34 +232,34 @@ kubectl describe chaosexperiment podkill-basic
 
 ## Running the Dashboard Locally
 
-The dashboard is a web UI for viewing experiment results.
+The dashboard is a React + Vite web UI for viewing experiment results.
 
 ### 1. Install Node.js Dependencies
 
 ```bash
-cd dashboard
-npm install
+cd dashboard/ui
+npm ci
 ```
 
 ### 2. Start Development Server
 
 ```bash
-npm run dev
+# Terminal 1: Run the Go backend
+go run ./dashboard/cmd/dashboard/ -knowledge-dir knowledge/
+
+# Terminal 2: Run the Vite dev server (with HMR)
+cd dashboard/ui && npm run dev
 ```
 
-The dashboard will be available at `http://localhost:3000`.
+The Vite dev server proxies `/api/` requests to the Go backend (port 8080). The dashboard will be available at `http://localhost:5173`.
 
-### 3. Configure API Endpoint
+### 3. Build for Production
 
-Edit `dashboard/.env.local`:
-
-```
-NEXT_PUBLIC_API_URL=http://localhost:8080
+```bash
+cd dashboard/ui && npm run build
 ```
 
-### 4. Run API Server (Optional)
-
-If the controller is running, it exposes an API server on port 8080 by default.
+This outputs to `dashboard/ui-dist/`, which is embedded into the Go binary via `go:embed`.
 
 ## Code Quality Tools
 
@@ -358,7 +360,7 @@ Set `CHAOS_LOG_LEVEL=debug` when running the controller or CLI:
 
 ```bash
 export CHAOS_LOG_LEVEL=debug
-./bin/chaos-controller
+operator-chaos controller start
 ```
 
 ### Inspect Chaos-Managed Resources
@@ -381,10 +383,10 @@ To test crash-safe cleanup, kill the controller mid-experiment and restart it:
 
 ```bash
 # Kill controller
-pkill chaos-controller
+pkill operator-chaos
 
 # Restart
-./bin/chaos-controller
+operator-chaos controller start
 ```
 
 The controller should detect in-progress experiments and clean them up via `Revert()`.
@@ -412,7 +414,7 @@ kubectl apply -f config/controller/rbac.yaml
 **Solution:** Check controller logs for validation errors:
 
 ```bash
-kubectl logs -n opendatahub deploy/chaos-controller
+kubectl logs -n default deploy/chaos-controller
 ```
 
 ### TTL cleanup not working
@@ -420,7 +422,7 @@ kubectl logs -n opendatahub deploy/chaos-controller
 **Solution:** Ensure the cleanup controller is running:
 
 ```bash
-kubectl get pod -n opendatahub -l app=chaos-cleanup-controller
+kubectl get pod -n default -l app=chaos-cleanup-controller
 ```
 
 ## Next Steps

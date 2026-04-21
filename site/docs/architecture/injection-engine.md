@@ -235,6 +235,9 @@ func NewDefaultRegistry(client client.Client) *injection.Registry {
     registry.Register(v1alpha1.RBACRevoke, injection.NewRBACRevokeInjector(client))
     registry.Register(v1alpha1.FinalizerBlock, injection.NewFinalizerBlockInjector(client))
     registry.Register(v1alpha1.ClientFault, injection.NewClientFaultInjector(client))
+    registry.Register(v1alpha1.OwnerRefOrphan, injection.NewOwnerRefOrphanInjector(client))
+    registry.Register(v1alpha1.QuotaExhaustion, injection.NewQuotaExhaustionInjector(client))
+    registry.Register(v1alpha1.WebhookLatency, injection.NewWebhookLatencyInjector(client))
 
     return registry
 }
@@ -306,6 +309,9 @@ kubectl get all -l chaos.operatorchaos.io/managed=true
 | RBACRevoke | Yes | Restore subjects |
 | FinalizerBlock | Yes | Remove finalizer |
 | ClientFault | Yes | Delete/restore ConfigMap |
+| OwnerRefOrphan | Yes | Restore ownerReferences from annotation |
+| QuotaExhaustion | Yes | Delete injected ResourceQuota |
+| WebhookLatency | Yes | Delete slow admission webhook |
 
 ### Stateful vs. Stateless Cleanup
 

@@ -8,7 +8,7 @@ Operator Chaos is a chaos engineering framework designed specifically for testin
 2. **Safety First** — Multi-layer blast radius controls, danger level gating, and automatic rollback
 3. **Crash-Safe Cleanup** — All injections store rollback data in annotations, enabling recovery after controller restarts
 4. **Blackboard Pattern** — Multiple observers contribute evidence to a shared board for holistic evaluation
-5. **Operator-Aware** — Built-in knowledge of ODH operators (resource ownership, dependencies)
+5. **Operator-Aware** — Knowledge-driven understanding of operator resource ownership and dependencies
 
 ## System Architecture
 
@@ -37,6 +37,9 @@ graph TB
             RBAC[RBAC]
             Finalizer[Finalizer]
             Client[Client Fault]
+            OwnerRef[OwnerRef Orphan]
+            Quota[Quota Exhaust]
+            WebhookLat[Webhook Latency]
         end
     end
 
@@ -292,7 +295,7 @@ kubectl get chaosexperiment my-test -w
 ### 2. CLI Mode (Standalone)
 
 ```bash
-chaos-cli run experiments/my-test.yaml --report-dir=./reports
+operator-chaos run experiments/my-test.yaml --report-dir=./reports
 ```
 
 **Use Case:** Local development, one-off tests, debugging

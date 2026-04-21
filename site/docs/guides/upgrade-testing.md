@@ -751,7 +751,7 @@ Real cluster validation (OCP 4.20 HyperShift, 2x m5.xlarge) confirmed operator r
 | RHOAI 3.3.1 | Subscription recreation | Resilient | 1.79s |
 
 !!! warning "Use `--namespace` for RHOAI clusters"
-    Experiment YAML files default to the `opendatahub` namespace. When running on RHOAI clusters, always pass `--namespace redhat-ods-applications` to override all namespace references in the experiment, including steady-state checks, blast radius validation, and reconciliation checks.
+    Experiment YAML files default to the `default` namespace. When running on specific platforms, use `--namespace` to target the correct namespace (e.g., `opendatahub` for ODH, `redhat-ods-applications` for RHOAI). This overrides all namespace references in the experiment, including steady-state checks, blast radius validation, and reconciliation checks.
 
 ## Next Steps
 

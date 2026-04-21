@@ -205,7 +205,7 @@ func (r *ResourceQuotaDisruptInjector) Revert(ctx context.Context, spec v1alpha1
 
 ## Step 3: Register the Injector
 
-Edit the registry initialization (typically in `cmd/controller/main.go` or a factory function):
+Edit the registry initialization (typically in `cmd/operator-chaos/main.go` or a factory function):
 
 ```go
 func NewDefaultRegistry(client client.Client) *injection.Registry {
@@ -545,7 +545,7 @@ kubectl apply -f config/crd/
 ### 2. Run Controller Locally
 
 ```bash
-go run ./cmd/controller/main.go
+go run ./cmd/operator-chaos/main.go
 ```
 
 ### 3. Submit Experiment

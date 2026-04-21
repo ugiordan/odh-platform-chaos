@@ -17,7 +17,7 @@ fault injection, not just that pods restart.
 ```
   -h, --help                help for operator-chaos
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -44,7 +44,7 @@ operator-chaos analyze <directory> [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -72,7 +72,7 @@ operator-chaos clean [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -94,7 +94,7 @@ Controller mode commands
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -161,7 +161,7 @@ operator-chaos diff-crds [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -195,7 +195,7 @@ operator-chaos diff [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -217,7 +217,7 @@ Generate code from knowledge models
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -247,7 +247,7 @@ operator-chaos generate chaos [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -275,7 +275,7 @@ operator-chaos generate fuzz-targets [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -327,8 +327,8 @@ operator-chaos init [flags]
 ```
       --component string   target component name (required)
   -h, --help               help for init
-      --namespace string   target namespace (default "opendatahub")
-      --operator string    target operator (default "opendatahub-operator")
+      --namespace string   target namespace (default "default")
+      --operator string    target operator (required)
       --type string        injection type (PodKill|NetworkPartition|CRDMutation|ConfigDrift|WebhookDisrupt|RBACRevoke|FinalizerBlock|ClientFault|OwnerRefOrphan|QuotaExhaustion|WebhookLatency) (default "PodKill")
 ```
 
@@ -362,7 +362,7 @@ and validation steps. Supports both UpgradePlaybook and ChaosPlaybook kinds.
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -397,7 +397,7 @@ operator-chaos playbook run [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -431,7 +431,7 @@ operator-chaos preflight [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -459,7 +459,7 @@ operator-chaos report <results-directory> [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -483,7 +483,7 @@ operator-chaos run <experiment.yaml> [flags]
   -h, --help                    help for run
       --knowledge stringArray   path to operator knowledge YAML (repeatable)
       --knowledge-dir string    directory of operator knowledge YAMLs
-      --lock-namespace string   namespace for distributed lock leases (default "opendatahub")
+      --lock-namespace string   namespace for distributed lock leases (default "default")
       --report-dir string       directory for report output
       --timeout duration        total experiment timeout (default 10m0s)
 ```
@@ -492,7 +492,7 @@ operator-chaos run <experiment.yaml> [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -524,7 +524,7 @@ operator-chaos simulate-upgrade [flags]
   -h, --help                    help for simulate-upgrade
       --knowledge stringArray   path to operator knowledge YAML (for live execution)
       --knowledge-dir string    directory of operator knowledge YAMLs (for live execution)
-      --lock-namespace string   namespace for distributed lock leases (default "opendatahub")
+      --lock-namespace string   namespace for distributed lock leases (default "default")
       --report-dir string       directory for reports
       --source string           path to source version knowledge directory (required)
       --target string           path to target version knowledge directory (required)
@@ -535,7 +535,7 @@ operator-chaos simulate-upgrade [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -559,7 +559,7 @@ operator-chaos suite <experiments-directory> [flags]
   -h, --help                    help for suite
       --knowledge stringArray   path to operator knowledge YAML (repeatable)
       --knowledge-dir string    directory of operator knowledge YAMLs
-      --lock-namespace string   namespace for distributed lock leases (default "opendatahub")
+      --lock-namespace string   namespace for distributed lock leases (default "default")
       --parallel int            max concurrent experiments (default 1)
       --report-dir string       directory for report output
       --timeout duration        timeout per experiment (default 10m0s)
@@ -569,7 +569,7 @@ operator-chaos suite <experiments-directory> [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -595,7 +595,7 @@ operator-chaos types [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -623,7 +623,7 @@ upgrades, and execute multi-step upgrade playbooks.
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -714,7 +714,7 @@ operator-chaos upgrade run [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -777,7 +777,7 @@ operator-chaos validate-version [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -804,7 +804,7 @@ operator-chaos validate <file.yaml> [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
@@ -830,7 +830,7 @@ operator-chaos version [flags]
 
 ```
       --kubeconfig string   path to kubeconfig file
-      --namespace string    target namespace (default "opendatahub")
+      --namespace string    target namespace (default "default")
   -v, --verbose             verbose output
 ```
 
