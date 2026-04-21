@@ -79,23 +79,21 @@ func buildOrchestrator(knowledgePaths []string, knowledgeDir string, dryRun bool
 		}
 	}
 
-	// Build injection registry
+	// Build injection registry. Register all injectors even in dry-run mode
+	// (with nil client) so that Validate() works for type checking.
+	// Inject/Revert are never called in dry-run mode.
 	registry := injection.NewRegistry()
-
-	// All injectors require a valid K8s client
-	if k8sClient != nil {
-		registry.Register(v1alpha1.PodKill, injection.NewPodKillInjector(k8sClient))
-		registry.Register(v1alpha1.CRDMutation, injection.NewCRDMutationInjector(k8sClient))
-		registry.Register(v1alpha1.ConfigDrift, injection.NewConfigDriftInjector(k8sClient))
-		registry.Register(v1alpha1.NetworkPartition, injection.NewNetworkPartitionInjector(k8sClient))
-		registry.Register(v1alpha1.WebhookDisrupt, injection.NewWebhookDisruptInjector(k8sClient))
-		registry.Register(v1alpha1.RBACRevoke, injection.NewRBACRevokeInjector(k8sClient))
-		registry.Register(v1alpha1.FinalizerBlock, injection.NewFinalizerBlockInjector(k8sClient))
-		registry.Register(v1alpha1.ClientFault, injection.NewClientFaultInjector(k8sClient))
-		registry.Register(v1alpha1.OwnerRefOrphan, injection.NewOwnerRefOrphanInjector(k8sClient))
-		registry.Register(v1alpha1.QuotaExhaustion, injection.NewQuotaExhaustionInjector(k8sClient))
-		registry.Register(v1alpha1.WebhookLatency, injection.NewWebhookLatencyInjector(k8sClient))
-	}
+	registry.Register(v1alpha1.PodKill, injection.NewPodKillInjector(k8sClient))
+	registry.Register(v1alpha1.CRDMutation, injection.NewCRDMutationInjector(k8sClient))
+	registry.Register(v1alpha1.ConfigDrift, injection.NewConfigDriftInjector(k8sClient))
+	registry.Register(v1alpha1.NetworkPartition, injection.NewNetworkPartitionInjector(k8sClient))
+	registry.Register(v1alpha1.WebhookDisrupt, injection.NewWebhookDisruptInjector(k8sClient))
+	registry.Register(v1alpha1.RBACRevoke, injection.NewRBACRevokeInjector(k8sClient))
+	registry.Register(v1alpha1.FinalizerBlock, injection.NewFinalizerBlockInjector(k8sClient))
+	registry.Register(v1alpha1.ClientFault, injection.NewClientFaultInjector(k8sClient))
+	registry.Register(v1alpha1.OwnerRefOrphan, injection.NewOwnerRefOrphanInjector(k8sClient))
+	registry.Register(v1alpha1.QuotaExhaustion, injection.NewQuotaExhaustionInjector(k8sClient))
+	registry.Register(v1alpha1.WebhookLatency, injection.NewWebhookLatencyInjector(k8sClient))
 
 	// Build orchestrator config
 	maxCycles := 10

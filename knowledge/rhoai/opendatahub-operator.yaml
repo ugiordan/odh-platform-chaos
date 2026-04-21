@@ -1,0 +1,41 @@
+operator:
+  name: opendatahub-operator
+  namespace: redhat-ods-operator
+  repository: https://github.com/opendatahub-io/opendatahub-operator
+
+components:
+  - name: rhods-operator
+    controller: DSCInitialization
+    managedResources:
+      - apiVersion: apps/v1
+        kind: Deployment
+        name: rhods-operator
+        namespace: redhat-ods-operator
+        labels:
+          name: rhods-operator
+      - apiVersion: v1
+        kind: ServiceAccount
+        name: redhat-ods-operator-controller-manager
+        namespace: redhat-ods-operator
+    webhooks:
+      - name: mutate.operator.opendatahub.io
+        type: mutating
+        path: /mutate-opendatahub-io-v1
+      - name: operator.opendatahub.io
+        type: validating
+        path: /validate-opendatahub-io-v1
+    finalizers:
+      - platform.opendatahub.io/finalizer
+    steadyState:
+      checks:
+        - type: conditionTrue
+          apiVersion: apps/v1
+          kind: Deployment
+          name: rhods-operator
+          namespace: redhat-ods-operator
+          conditionType: Available
+      timeout: "60s"
+
+recovery:
+  reconcileTimeout: "300s"
+  maxReconcileCycles: 10
