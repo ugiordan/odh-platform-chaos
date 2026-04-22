@@ -19,12 +19,12 @@ func (r *MarkdownReporter) WriteReport(w io.Writer, reports []ExperimentReport) 
 
 	// Title and header stats.
 	b.WriteString("# Chaos Experiment Report\n\n")
-	b.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&b,
 		"**Generated:** %s | **Experiments:** %d | **Pass Rate:** %.1f%%\n\n",
 		time.Now().UTC().Format(time.RFC3339),
 		summary.Total,
 		summary.PassRate*100,
-	))
+	)
 
 	// Summary verdict table (non-zero only).
 	b.WriteString("## Summary\n\n")
@@ -41,7 +41,7 @@ func (r *MarkdownReporter) WriteReport(w io.Writer, reports []ExperimentReport) 
 	}
 	for _, v := range verdicts {
 		if v.count > 0 {
-			b.WriteString(fmt.Sprintf("| %s | %d |\n", v.name, v.count))
+			fmt.Fprintf(&b, "| %s | %d |\n", v.name, v.count)
 		}
 	}
 	b.WriteString("\n")
@@ -57,16 +57,16 @@ func (r *MarkdownReporter) WriteReport(w io.Writer, reports []ExperimentReport) 
 }
 
 func writeExperiment(b *strings.Builder, report ExperimentReport) {
-	b.WriteString(fmt.Sprintf("### %s\n\n", report.Experiment))
+	fmt.Fprintf(b, "### %s\n\n", report.Experiment)
 
 	// Field table.
 	b.WriteString("| Field | Value |\n")
 	b.WriteString("|-------|-------|\n")
-	b.WriteString(fmt.Sprintf("| Component | %s |\n", report.Target.Component))
-	b.WriteString(fmt.Sprintf("| Injection | %s |\n", report.Injection.Type))
-	b.WriteString(fmt.Sprintf("| Verdict | %s |\n", string(report.Evaluation.Verdict)))
-	b.WriteString(fmt.Sprintf("| Recovery | %s |\n",
-		formatRecovery(report.Evaluation.RecoveryTime, report.Evaluation.ReconcileCycles)))
+	fmt.Fprintf(b, "| Component | %s |\n", report.Target.Component)
+	fmt.Fprintf(b, "| Injection | %s |\n", report.Injection.Type)
+	fmt.Fprintf(b, "| Verdict | %s |\n", string(report.Evaluation.Verdict))
+	fmt.Fprintf(b, "| Recovery | %s |\n",
+		formatRecovery(report.Evaluation.RecoveryTime, report.Evaluation.ReconcileCycles))
 	b.WriteString("\n")
 
 	// Collapsible details.
@@ -78,14 +78,14 @@ func writeExperiment(b *strings.Builder, report ExperimentReport) {
 func writeDetails(b *strings.Builder, report ExperimentReport) {
 	// Injection parameters.
 	if params := formatMapSorted(report.Injection.Details); params != "" {
-		b.WriteString(fmt.Sprintf("**Injection Parameters:** %s\n\n", params))
+		fmt.Fprintf(b, "**Injection Parameters:** %s\n\n", params)
 	}
 
 	// Steady state.
-	b.WriteString(fmt.Sprintf("**Steady State:** Pre: %s | Post: %s\n\n",
+	fmt.Fprintf(b, "**Steady State:** Pre: %s | Post: %s\n\n",
 		formatCheckResult(report.SteadyState.Pre),
 		formatCheckResult(report.SteadyState.Post),
-	))
+	)
 
 	// Deviations.
 	if len(report.Evaluation.Deviations) == 0 {
@@ -93,21 +93,21 @@ func writeDetails(b *strings.Builder, report ExperimentReport) {
 	} else {
 		b.WriteString("**Deviations:**\n\n")
 		for _, d := range report.Evaluation.Deviations {
-			b.WriteString(fmt.Sprintf("- `%s`: %s\n", d.Type, d.Detail))
+			fmt.Fprintf(b, "- `%s`: %s\n", d.Type, d.Detail)
 		}
 		b.WriteString("\n")
 	}
 
 	// Cleanup error.
 	if report.CleanupError != "" {
-		b.WriteString(fmt.Sprintf("**Cleanup Error:** %s\n\n", report.CleanupError))
+		fmt.Fprintf(b, "**Cleanup Error:** %s\n\n", report.CleanupError)
 	}
 
 	// Collateral findings.
 	if len(report.Collateral) > 0 {
 		b.WriteString("**Collateral Findings:**\n\n")
 		for _, c := range report.Collateral {
-			b.WriteString(fmt.Sprintf("- %s/%s: %s\n", c.Operator, c.Component, verdictFromBool(c.Passed)))
+			fmt.Fprintf(b, "- %s/%s: %s\n", c.Operator, c.Component, verdictFromBool(c.Passed))
 		}
 		b.WriteString("\n")
 	}

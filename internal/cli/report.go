@@ -135,28 +135,28 @@ func writeSummaryReport(output string, reports []reporter.ExperimentReport) erro
 		w = f
 	}
 
-	fmt.Fprintf(w, "Chaos Engineering Report (%d experiments)\n", len(reports))
-	fmt.Fprintln(w, strings.Repeat("=", 80))
-	fmt.Fprintf(w, "  %-30s  %-14s  %-12s  %s\n", "EXPERIMENT", "VERDICT", "RECOVERY", "DEVIATIONS")
-	fmt.Fprintln(w, strings.Repeat("-", 80))
+	_, _ = fmt.Fprintf(w, "Chaos Engineering Report (%d experiments)\n", len(reports))
+	_, _ = fmt.Fprintln(w, strings.Repeat("=", 80))
+	_, _ = fmt.Fprintf(w, "  %-30s  %-14s  %-12s  %s\n", "EXPERIMENT", "VERDICT", "RECOVERY", "DEVIATIONS")
+	_, _ = fmt.Fprintln(w, strings.Repeat("-", 80))
 	for _, r := range reports {
 		recoveryStr := r.Evaluation.RecoveryTime.Round(time.Second).String()
 		deviationCount := len(r.Evaluation.Deviations)
 		if w == os.Stdout {
-			fmt.Fprintf(w, "  %-30s  %s  %-12s  %d\n",
+			_, _ = fmt.Fprintf(w, "  %-30s  %s  %-12s  %d\n",
 				r.Experiment,
 				paddedColorVerdict(string(r.Evaluation.Verdict), 14),
 				recoveryStr,
 				deviationCount)
 		} else {
-			fmt.Fprintf(w, "  %-30s  %-14s  %-12s  %d\n",
+			_, _ = fmt.Fprintf(w, "  %-30s  %-14s  %-12s  %d\n",
 				r.Experiment,
 				r.Evaluation.Verdict,
 				recoveryStr,
 				deviationCount)
 		}
 	}
-	fmt.Fprintln(w, strings.Repeat("=", 80))
+	_, _ = fmt.Fprintln(w, strings.Repeat("=", 80))
 	return nil
 }
 

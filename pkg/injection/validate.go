@@ -100,6 +100,10 @@ func ValidateInjectionParams(spec v1alpha1.InjectionSpec, blast v1alpha1.BlastRa
 		return validateQuotaExhaustionParams(spec)
 	case v1alpha1.WebhookLatency:
 		return validateWebhookLatencyParams(spec)
+	case v1alpha1.NamespaceDeletion:
+		return validateNamespaceDeletionParams(spec)
+	case v1alpha1.LabelStomping:
+		return validateLabelStompingParams(spec)
 	default:
 		return fmt.Errorf("no parameter validation implemented for injection type %q", spec.Type)
 	}
@@ -729,5 +733,181 @@ func validateFieldName(paramName, value string) error {
 	if !validFieldPattern.MatchString(value) {
 		return fmt.Errorf("%s %q is not a valid field name", paramName, value)
 	}
+	return nil
+}
+
+// systemLabelPatterns are label key patterns that require dangerLevel: high
+// for LabelStomping experiments.
+var systemLabelPatterns = []string{
+	"kubernetes.io/",
+	"k8s.io/",
+	"node-role.kubernetes.io/",
+}
+
+func validateLabelStompingParams(spec v1alpha1.InjectionSpec) error {
+	apiVersion := spec.Parameters["apiVersion"]
+	if apiVersion == "" {
+		return fmt.Errorf("LabelStomping requires non-empty 'apiVersion' parameter")
+	}
+	kind := spec.Parameters["kind"]
+	if kind == "" {
+		return fmt.Errorf("LabelStomping requires non-empty 'kind' parameter")
+	}
+	name := spec.Parameters["name"]
+	if name == "" {
+		return fmt.Errorf("LabelStomping requires 'name' parameter")
+	}
+	if err := validateK8sName("name", name); err != nil {
+		return err
+	}
+	if err := rejectChaosManagedResource("LabelStomping", name); err != nil {
+		return err
+	}
+
+	labelKey := spec.Parameters["labelKey"]
+	if labelKey == "" {
+		return fmt.Errorf("LabelStomping requires non-empty 'labelKey' parameter")
+	}
+	if err := validateLabelKey(labelKey); err != nil {
+		return fmt.Errorf("LabelStomping 'labelKey': %w", err)
+	}
+
+	// Reject chaos-owned labels
+	if labelKey == "app.kubernetes.io/managed-by" {
+		return fmt.Errorf("LabelStomping cannot modify chaos-owned label %q", labelKey)
+	}
+	if strings.HasPrefix(labelKey, "chaos.operatorchaos.io/") {
+		return fmt.Errorf("LabelStomping cannot modify chaos-owned label %q (prefix chaos.operatorchaos.io/ is reserved)", labelKey)
+	}
+
+	action := spec.Parameters["action"]
+	if action == "" {
+		return fmt.Errorf("LabelStomping requires 'action' parameter ('overwrite' or 'delete')")
+	}
+	if action != "overwrite" && action != "delete" {
+		return fmt.Errorf("LabelStomping action must be 'overwrite' or 'delete', got %q", action)
+	}
+
+	// Validate newValue for overwrite action
+	if action == "overwrite" {
+		nv := spec.Parameters["newValue"]
+		if nv == "" {
+			nv = "chaos-stomped"
+		}
+		if err := validateLabelValue(nv); err != nil {
+			return fmt.Errorf("LabelStomping 'newValue': %w", err)
+		}
+	}
+
+	// System labels require dangerLevel: high
+	for _, pattern := range systemLabelPatterns {
+		if strings.Contains(labelKey, pattern) {
+			if spec.DangerLevel != v1alpha1.DangerLevelHigh {
+				return fmt.Errorf("LabelStomping targeting system label %q (matches %q) requires dangerLevel: high", labelKey, pattern)
+			}
+			break
+		}
+	}
+
+	return nil
+}
+
+// validLabelNamePattern matches the name portion of a Kubernetes label key.
+var validLabelNamePattern = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$`)
+
+// validLabelValuePattern matches a valid Kubernetes label value.
+var validLabelValuePattern = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?)?$`)
+
+// validateLabelKey checks that a label key conforms to Kubernetes label key rules:
+// optional prefix (DNS subdomain, max 253 chars) + "/" + name (max 63 chars).
+func validateLabelKey(key string) error {
+	if len(key) == 0 {
+		return fmt.Errorf("must not be empty")
+	}
+
+	var name string
+	if idx := strings.LastIndex(key, "/"); idx >= 0 {
+		prefix := key[:idx]
+		name = key[idx+1:]
+		if len(prefix) == 0 {
+			return fmt.Errorf("prefix before '/' must not be empty")
+		}
+		if len(prefix) > 253 {
+			return fmt.Errorf("prefix exceeds 253 characters")
+		}
+		if !validNamePattern.MatchString(prefix) {
+			return fmt.Errorf("prefix %q is not a valid DNS subdomain", prefix)
+		}
+	} else {
+		name = key
+	}
+
+	if len(name) == 0 {
+		return fmt.Errorf("name portion must not be empty")
+	}
+	if len(name) > 63 {
+		return fmt.Errorf("name portion exceeds 63 characters")
+	}
+	if !validLabelNamePattern.MatchString(name) {
+		return fmt.Errorf("name %q is not valid (must match [a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?)", name)
+	}
+	return nil
+}
+
+// validateLabelValue checks that a label value conforms to Kubernetes rules:
+// max 63 chars, matching [a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])? or empty.
+func validateLabelValue(value string) error {
+	if len(value) > 63 {
+		return fmt.Errorf("exceeds 63 characters")
+	}
+	if !validLabelValuePattern.MatchString(value) {
+		return fmt.Errorf("%q is not a valid label value", value)
+	}
+	return nil
+}
+
+// forbiddenNamespaces is a deny-list of namespaces that must never be deleted.
+var forbiddenNamespaces = map[string]bool{
+	"default":         true,
+	"kube-system":     true,
+	"kube-public":     true,
+	"kube-node-lease": true,
+}
+
+// forbiddenNamespacePrefixes are namespace name prefixes that must never be deleted.
+var forbiddenNamespacePrefixes = []string{
+	"openshift-",
+	"chaos-",
+	"redhat-ods-",
+}
+
+// controllerNamespace is the namespace where the chaos controller runs.
+const controllerNamespace = "odh-chaos-system"
+
+func validateNamespaceDeletionParams(spec v1alpha1.InjectionSpec) error {
+	if spec.DangerLevel != v1alpha1.DangerLevelHigh {
+		return fmt.Errorf("NamespaceDeletion requires dangerLevel: high")
+	}
+
+	ns := spec.Parameters["namespace"]
+	if ns == "" {
+		return fmt.Errorf("NamespaceDeletion requires non-empty 'namespace' parameter")
+	}
+	if err := validateK8sName("namespace", ns); err != nil {
+		return err
+	}
+
+	if forbiddenNamespaces[ns] {
+		return fmt.Errorf("NamespaceDeletion cannot target protected namespace %q", ns)
+	}
+	if ns == controllerNamespace {
+		return fmt.Errorf("NamespaceDeletion cannot target controller namespace %q", ns)
+	}
+	for _, prefix := range forbiddenNamespacePrefixes {
+		if strings.HasPrefix(ns, prefix) {
+			return fmt.Errorf("NamespaceDeletion cannot target namespace %q (prefix %q is protected)", ns, prefix)
+		}
+	}
+
 	return nil
 }

@@ -28,6 +28,8 @@ func newTypesCommand() *cobra.Command {
 				{"OwnerRefOrphan", "Remove ownerReferences to test re-adoption", v1alpha1.DangerLevelMedium},
 				{"QuotaExhaustion", "Create restrictive ResourceQuota", v1alpha1.DangerLevelMedium},
 				{"WebhookLatency", "Deploy slow admission webhook", v1alpha1.DangerLevelHigh},
+				{"NamespaceDeletion", "Delete namespace to test operator recovery", v1alpha1.DangerLevelHigh},
+				{"LabelStomping", "Modify labels to test reconciliation", v1alpha1.DangerLevelMedium},
 			}
 			fmt.Println("Available injection types:")
 			fmt.Println()

@@ -614,6 +614,52 @@ injection:
     delay: "5s"
 ```
 
+### LabelStomping
+
+Modify or remove labels on operator-managed resources to test whether the operator's label-based reconciliation detects and corrects drift. Uses Unstructured client with JSON merge patches, so it works with any GVK. **Danger: medium** (high if targeting system labels like `kubernetes.io/`)
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `apiVersion` | Yes | Resource API version |
+| `kind` | Yes | Resource kind |
+| `name` | Yes | Resource name |
+| `labelKey` | Yes | Label key to modify or delete |
+| `action` | Yes | `overwrite` (set a new value) or `delete` (remove the label) |
+| `newValue` | No | Value to set when action is `overwrite` (default: `chaos-stomped`) |
+
+```yaml
+injection:
+  type: LabelStomping
+  parameters:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: odh-model-controller
+    labelKey: app.kubernetes.io/name
+    action: overwrite
+    newValue: chaos-stomped
+  dangerLevel: high  # required for kubernetes.io/ labels
+```
+
+Safety: rejects chaos-owned labels (`app.kubernetes.io/managed-by`, `chaos.operatorchaos.io/*`), validates label key/value format per K8s rules, and requires `dangerLevel: high` for system label patterns (`kubernetes.io/`, `k8s.io/`).
+
+### NamespaceDeletion
+
+Delete an entire namespace to test whether the operator detects the loss and recreates both the namespace and its managed resources. Rollback metadata is stored in a ConfigMap in the experiment's safe namespace. **Danger: high** (always required)
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `namespace` | Yes | Namespace to delete |
+
+```yaml
+injection:
+  type: NamespaceDeletion
+  parameters:
+    namespace: opendatahub
+  dangerLevel: high  # always required
+```
+
+Safety: hardcoded deny-list prevents targeting `kube-system`, `default`, `kube-public`, `kube-node-lease`, `odh-chaos-system`, and any namespace matching `openshift-*`, `chaos-*`, or `redhat-ods-*` prefixes. The experiment namespace (where rollback data is stored) is also protected.
+
 ## CLI Reference
 
 | Command | Description |
@@ -716,10 +762,10 @@ operator-chaos report <results-directory> [flags]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--format` | Output format (`summary` or `junit`) | `summary` |
-| `--output` | Output directory for report files (JUnit only; summary always writes to stdout) | |
+| `--format` | Output format: `summary`, `json`, `junit`, `html`, `markdown` | `summary` |
+| `--output` | Output file path (default: stdout for summary/markdown, auto-named file in results dir for json/junit/html) | |
 
-Generates summary reports from experiment results. Summary format writes to stdout. JUnit format writes to stdout by default, or to `<output-dir>/chaos-results.xml` when `--output` is specified.
+Generates reports from experiment results. Summary and markdown write to stdout by default. JSON writes `report.json`, JUnit writes `report.xml`, and HTML writes `report.html` into the results directory.
 
 ### preflight
 
@@ -832,7 +878,7 @@ operator-chaos run experiment.yaml --knowledge kserve.yaml --knowledge odh-model
 graph TD
     CLI["CLI Layer<br/>run | validate | init | clean | analyze | suite | report | types | diff | version"]
     ORCH["Orchestrator<br/>Experiment Lifecycle State Machine"]
-    INJ["Injection Engine<br/>11 injection types"]
+    INJ["Injection Engine<br/>13 injection types"]
     OBS["Observer<br/>Reconciliation + K8s watches"]
     EVAL["Evaluator<br/>Verdict engine"]
     REP["Reporter<br/>JSON + JUnit output"]
@@ -891,7 +937,7 @@ pkg/
   diff/               Version diff engine, CRD schema walker, upgrade simulation
   evaluator/            Verdict engine
   experiment/           Experiment loading and validation
-  injection/            8 injection type implementations
+  injection/            13 injection type implementations
   model/                Knowledge model types, validation, DependencyGraph, loader
   observer/             Reconciliation, K8s resource observation, Blackboard pattern (ObservationBoard, Contributors)
   orchestrator/         Experiment lifecycle state machine
@@ -910,7 +956,7 @@ dashboard/
   ui/                   React 18 + TypeScript frontend (Vite)
   embed.go              go:embed for serving built UI assets
 knowledge/              Operator knowledge YAML files (versioned: odh/v2.10, rhoai/v3.3)
-experiments/            Pre-built experiment suites (81 experiments)
+experiments/            Pre-built experiment suites (92 experiments)
 ```
 
 ## Dashboard

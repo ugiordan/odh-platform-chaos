@@ -94,6 +94,8 @@ func buildOrchestrator(knowledgePaths []string, knowledgeDir string, dryRun bool
 	registry.Register(v1alpha1.OwnerRefOrphan, injection.NewOwnerRefOrphanInjector(k8sClient))
 	registry.Register(v1alpha1.QuotaExhaustion, injection.NewQuotaExhaustionInjector(k8sClient))
 	registry.Register(v1alpha1.WebhookLatency, injection.NewWebhookLatencyInjector(k8sClient))
+	registry.Register(v1alpha1.NamespaceDeletion, injection.NewNamespaceDeletionInjector(k8sClient))
+	registry.Register(v1alpha1.LabelStomping, injection.NewLabelStompingInjector(k8sClient))
 
 	// Build orchestrator config
 	maxCycles := 10

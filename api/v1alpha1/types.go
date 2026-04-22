@@ -101,7 +101,7 @@ type InjectionSpec struct {
 }
 
 // InjectionType represents the type of fault injection.
-// +kubebuilder:validation:Enum=PodKill;NetworkPartition;CRDMutation;ConfigDrift;WebhookDisrupt;RBACRevoke;FinalizerBlock;ClientFault;OwnerRefOrphan;QuotaExhaustion;WebhookLatency
+// +kubebuilder:validation:Enum=PodKill;NetworkPartition;CRDMutation;ConfigDrift;WebhookDisrupt;RBACRevoke;FinalizerBlock;ClientFault;OwnerRefOrphan;QuotaExhaustion;WebhookLatency;NamespaceDeletion;LabelStomping
 type InjectionType string
 
 const (
@@ -116,6 +116,8 @@ const (
 	OwnerRefOrphan   InjectionType = "OwnerRefOrphan"
 	QuotaExhaustion  InjectionType = "QuotaExhaustion"
 	WebhookLatency   InjectionType = "WebhookLatency"
+	NamespaceDeletion InjectionType = "NamespaceDeletion"
+	LabelStomping     InjectionType = "LabelStomping"
 )
 
 var validInjectionTypes = map[InjectionType]bool{
@@ -130,6 +132,8 @@ var validInjectionTypes = map[InjectionType]bool{
 	OwnerRefOrphan:   true,
 	QuotaExhaustion:  true,
 	WebhookLatency:   true,
+	NamespaceDeletion: true,
+	LabelStomping:     true,
 }
 
 // ValidInjectionTypes returns all valid injection types in sorted order.

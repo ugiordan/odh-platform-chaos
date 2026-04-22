@@ -118,7 +118,7 @@ func TestValidateInjectionType_Typo(t *testing.T) {
 
 func TestValidInjectionTypes_Count(t *testing.T) {
 	types := ValidInjectionTypes()
-	assert.Len(t, types, 11)
+	assert.Len(t, types, 13)
 }
 
 func TestValidInjectionTypes_Sorted(t *testing.T) {

@@ -1,0 +1,37 @@
+apiVersion: chaos.operatorchaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: odh-model-controller-label-stomping
+spec:
+  target:
+    operator: odh-model-controller
+    component: odh-model-controller
+    resource: Deployment/odh-model-controller
+  steadyState:
+    checks:
+      - type: resourceExists
+        apiVersion: apps/v1
+        kind: Deployment
+        name: odh-model-controller
+        namespace: opendatahub
+    timeout: "30s"
+  injection:
+    type: LabelStomping
+    dangerLevel: high
+    parameters:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: odh-model-controller
+      labelKey: app.kubernetes.io/name
+      action: overwrite
+    ttl: "300s"
+  hypothesis:
+    description: >-
+      When a label used for resource discovery is overwritten on the
+      odh-model-controller Deployment, the operator should detect the
+      label drift and restore the correct label value.
+    recoveryTimeout: 120s
+  blastRadius:
+    maxPodsAffected: 1
+    allowedNamespaces:
+      - opendatahub
