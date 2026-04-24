@@ -5,6 +5,10 @@
          <lastmod>2026-04-24</lastmod>
     </url>
     <url>
+         <loc>https://ugiordan.github.io/operator-chaos/troubleshooting/</loc>
+         <lastmod>2026-04-24</lastmod>
+    </url>
+    <url>
          <loc>https://ugiordan.github.io/operator-chaos/architecture/injection-engine/</loc>
          <lastmod>2026-04-24</lastmod>
     </url>
@@ -265,7 +269,11 @@
          <lastmod>2026-04-24</lastmod>
     </url>
     <url>
-         <loc>https://ugiordan.github.io/operator-chaos/contributing/adding-injection-types/</loc>
+         <loc>https://ugiordan.github.io/operator-chaos/contributing/</loc>
+         <lastmod>2026-04-24</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/operator-chaos/contributing/adding-failure-modes/</loc>
          <lastmod>2026-04-24</lastmod>
     </url>
     <url>
@@ -333,19 +341,7 @@
          <lastmod>2026-04-24</lastmod>
     </url>
     <url>
-         <loc>https://ugiordan.github.io/operator-chaos/getting-started/cli-quickstart/</loc>
-         <lastmod>2026-04-24</lastmod>
-    </url>
-    <url>
-         <loc>https://ugiordan.github.io/operator-chaos/getting-started/fuzz-quickstart/</loc>
-         <lastmod>2026-04-24</lastmod>
-    </url>
-    <url>
          <loc>https://ugiordan.github.io/operator-chaos/getting-started/installation/</loc>
-         <lastmod>2026-04-24</lastmod>
-    </url>
-    <url>
-         <loc>https://ugiordan.github.io/operator-chaos/getting-started/sdk-quickstart/</loc>
          <lastmod>2026-04-24</lastmod>
     </url>
     <url>
@@ -353,7 +349,7 @@
          <lastmod>2026-04-24</lastmod>
     </url>
     <url>
-         <loc>https://ugiordan.github.io/operator-chaos/guides/controller-mode/</loc>
+         <loc>https://ugiordan.github.io/operator-chaos/guides/controller-advanced/</loc>
          <lastmod>2026-04-24</lastmod>
     </url>
     <url>
@@ -378,6 +374,22 @@
     </url>
     <url>
          <loc>https://ugiordan.github.io/operator-chaos/guides/upgrade-testing/</loc>
+         <lastmod>2026-04-24</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/operator-chaos/modes/cli/</loc>
+         <lastmod>2026-04-24</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/operator-chaos/modes/controller/</loc>
+         <lastmod>2026-04-24</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/operator-chaos/modes/fuzz/</loc>
+         <lastmod>2026-04-24</lastmod>
+    </url>
+    <url>
+         <loc>https://ugiordan.github.io/operator-chaos/modes/sdk/</loc>
          <lastmod>2026-04-24</lastmod>
     </url>
     <url>
