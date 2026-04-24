@@ -527,5 +527,5 @@ if err != nil {
 ## Next Steps
 
 - [Observer Blackboard Pattern](observer-blackboard.md) — How observations are collected
-- [Contributing: Adding Injection Types](../contributing/adding-injection-types.md) — Implement a new injector
-- [Failure Modes Reference](../failure-modes/index.md) — See all 11 injection types in action
+- [Contributing: Adding Failure Modes](../contributing/adding-failure-modes.md) — Implement a new injector
+- [Failure Modes Reference](../failure-modes/index.md) — All available failure modes

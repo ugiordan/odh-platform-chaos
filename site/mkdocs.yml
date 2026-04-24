@@ -71,14 +71,13 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
-    - Installation: getting-started/installation.md
+  - Installation: getting-started/installation.md
   - Modes:
-    - CLI: getting-started/cli-quickstart.md
-    - SDK: getting-started/sdk-quickstart.md
-    - Controller: guides/controller-mode.md
-    - Fuzz: getting-started/fuzz-quickstart.md
-  - Injection Types:
+    - CLI: modes/cli.md
+    - SDK: modes/sdk.md
+    - Controller: modes/controller.md
+    - Fuzz: modes/fuzz.md
+  - Failure Modes:
     - failure-modes/index.md
     - Infrastructure:
       - PodKill: failure-modes/podkill.md
@@ -89,25 +88,26 @@ nav:
       - ConfigDrift: failure-modes/config-drift.md
       - CRDMutation: failure-modes/crd-mutation.md
       - LabelStomping: failure-modes/label-stomping.md
+      - ClientFault: failure-modes/client-fault.md
     - Access Control:
       - RBACRevoke: failure-modes/rbac-revoke.md
       - WebhookDisrupt: failure-modes/webhook-disrupt.md
       - WebhookLatency: failure-modes/webhook-latency.md
-    - Ownership & SDK:
+    - Lifecycle:
       - FinalizerBlock: failure-modes/finalizer-block.md
       - OwnerRefOrphan: failure-modes/ownerref-orphan.md
-      - ClientFault: failure-modes/client-fault.md
-    - Creating Custom Injection Types: failure-modes/custom-failure-modes.md
+    - Creating Custom Failure Modes: failure-modes/custom-failure-modes.md
   - Guides:
-    - Experiments:
+    - Testing Scenarios:
       - E2E Testing: guides/e2e-testing.md
       - Route Chaos: guides/route-chaos.md
       - Knowledge Models: guides/knowledge-models.md
       - Upgrade Testing: guides/upgrade-testing.md
-    - Deployment & Monitoring:
+      - Controller Advanced: guides/controller-advanced.md
+    - Operations:
       - CI Integration: guides/ci-integration.md
-      - Dashboard (Chaos Operator): guides/dashboard-operator.md
-      - Dashboard (Grafana): guides/dashboard-grafana.md
+      - Operator Dashboard: guides/dashboard-operator.md
+      - Grafana Dashboard: guides/dashboard-grafana.md
   - Components:
     - components/index.md
     - Core:
@@ -136,17 +136,16 @@ nav:
         - Failure Modes: components/workbenches/failure-modes.md
         - Validation Results: components/workbenches/validation-results.md
         - Custom Experiments: components/workbenches/custom-experiments.md
-    - Platform:
-      - OpenDataHub Operator:
-        - components/opendatahub-operator/index.md
-        - Failure Modes: components/opendatahub-operator/failure-modes.md
-        - Validation Results: components/opendatahub-operator/validation-results.md
-        - Custom Experiments: components/opendatahub-operator/custom-experiments.md
       - Data Science Pipelines:
         - components/data-science-pipelines/index.md
         - Failure Modes: components/data-science-pipelines/failure-modes.md
         - Validation Results: components/data-science-pipelines/validation-results.md
         - Custom Experiments: components/data-science-pipelines/custom-experiments.md
+      - OpenDataHub Operator:
+        - components/opendatahub-operator/index.md
+        - Failure Modes: components/opendatahub-operator/failure-modes.md
+        - Validation Results: components/opendatahub-operator/validation-results.md
+        - Custom Experiments: components/opendatahub-operator/custom-experiments.md
     - Optional:
       - CodeFlare:
         - components/codeflare/index.md
@@ -192,11 +191,13 @@ nav:
     - CRD Schema: reference/crd-schema.md
     - Go SDK: reference/go-sdk.md
     - CLI Commands: reference/cli-commands.md
-  - Architecture:
-    - Design Overview: architecture/overview.md
-    - Injection Engine: architecture/injection-engine.md
-    - Observer & Blackboard: architecture/observer-blackboard.md
-    - Upgrade Diff Engine: architecture/upgrade-diff-engine.md
+    - Architecture:
+      - Design Overview: architecture/overview.md
+      - Injection Engine: architecture/injection-engine.md
+      - Observer & Blackboard: architecture/observer-blackboard.md
+      - Upgrade Diff Engine: architecture/upgrade-diff-engine.md
   - Contributing:
+    - contributing/index.md
     - Development Setup: contributing/development-setup.md
-    - Adding Injection Types (Go): contributing/adding-injection-types.md
+    - Adding Failure Modes: contributing/adding-failure-modes.md
+  - Troubleshooting: troubleshooting.md

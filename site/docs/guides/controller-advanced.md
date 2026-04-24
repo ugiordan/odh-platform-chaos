@@ -1,313 +1,10 @@
-# Controller Mode
+# Controller Advanced Guide
 
-Controller mode runs chaos experiments as Kubernetes Custom Resources (CRs), managed by a dedicated reconciler. Instead of running one-shot experiments via the CLI, you create `ChaosExperiment` CRs that the controller drives through the experiment lifecycle.
+This guide covers advanced controller mode topics: additional experiment examples, detailed status fields, safety mechanisms, scheduled experiments, and GitOps integration. For getting started with controller mode, see [Controller Mode](../modes/controller.md).
 
-## Why Controller Mode?
+## Additional Experiment Examples
 
-**CLI mode** (via `operator-chaos run`) is great for:
-
-- Local development and testing
-- CI/CD pipelines with ephemeral clusters
-- One-off experiments with immediate results
-
-**Controller mode** is better for:
-
-- Continuous chaos testing in long-lived clusters
-- Scheduled experiments via Kubernetes CronJobs
-- Multi-tenant environments where teams manage their own experiments
-- Integration with GitOps workflows (Argo CD, Flux)
-- Auditable experiment history stored as CRs
-
-In controller mode, experiments are **declarative**: you define the desired experiment as a CR, and the controller reconciles it to completion. The controller enforces safety mechanisms, manages distributed locking, and provides Kubernetes-native integrations (events, conditions, metrics).
-
-## Architecture
-
-```mermaid
-graph TD
-    CR[ChaosExperiment CR]
-    Controller[Chaos Controller]
-    Orchestrator[Orchestrator]
-    Injector[Injection Engine]
-    Observer[Observer]
-    Evaluator[Evaluator]
-
-    CR -->|watches| Controller
-    Controller -->|reconciles| Orchestrator
-    Orchestrator --> Injector
-    Orchestrator --> Observer
-    Orchestrator --> Evaluator
-    Evaluator -->|updates status| CR
-
-    style CR fill:#bbdefb,stroke:#1565c0
-    style Controller fill:#ce93d8,stroke:#6a1b9a
-    style Orchestrator fill:#ce93d8,stroke:#6a1b9a
-    style Injector fill:#ffcc80,stroke:#e65100
-    style Observer fill:#a5d6a7,stroke:#2e7d32
-    style Evaluator fill:#ef9a9a,stroke:#c62828
-```
-
-The controller uses the **phase-per-reconcile** pattern: each reconcile loop advances the experiment by exactly one phase, updating `.status.phase` and `.status.conditions`. This ensures crash safety—if the controller restarts, it resumes from the last completed phase.
-
-## Experiment Lifecycle
-
-Each `ChaosExperiment` CR progresses through these phases:
-
-```mermaid
-stateDiagram-v2
-    [*] --> Pending: CR Created
-
-    state "Happy Path" as happy {
-        Pending --> SteadyStatePre: Validation OK\nLock Acquired
-        SteadyStatePre --> Injecting: Baseline\nEstablished
-        Injecting --> Observing: Fault Injected
-        Observing --> SteadyStatePost: Recovery Timeout\nElapsed
-        SteadyStatePost --> Evaluating: Post-Check\nComplete
-        Evaluating --> Complete: Verdict Rendered
-    }
-
-    state "Error Path" as error {
-        SteadyStatePre --> Aborted: Baseline Failed
-        Injecting --> Aborted: Injection Error
-    }
-
-    Complete --> [*]: Finalizer Removed
-    Aborted --> [*]: Cleanup Done
-```
-
-| Phase | Description | Requeue Behavior |
-|-------|-------------|------------------|
-| `Pending` | Validates experiment spec, loads knowledge model, acquires distributed lock | Immediate requeue on validation success |
-| `SteadyStatePre` | Runs pre-injection steady-state checks to establish baseline | Immediate requeue on check success; abort on failure |
-| `Injecting` | Applies the fault (kills pod, mutates config, etc.) | Immediate requeue on successful injection |
-| `Observing` | Waits for recovery timeout, monitors reconciliation | Requeues every 30s until timeout elapsed |
-| `SteadyStatePost` | Runs post-recovery steady-state checks | Immediate requeue on check completion |
-| `Evaluating` | Renders verdict based on findings | Immediate requeue after verdict set |
-| `Complete` | Experiment finished successfully | Terminal state, no requeue |
-| `Aborted` | Experiment aborted due to validation error or baseline failure | Terminal state, cleanup performed, no requeue |
-
-**Status conditions** track progress:
-
-- `SteadyStateEstablished`: Pre-check passed
-- `FaultInjected`: Fault applied successfully
-- `RecoveryObserved`: Recovery timeout elapsed
-- `Complete`: Experiment finished
-
-The controller emits Kubernetes **events** at each phase transition for observability.
-
-## Prerequisites
-
-1. **Kubernetes cluster** (v1.25+) or OpenShift (4.12+)
-2. **cluster-admin RBAC** (controller needs permissions to create/delete/mutate arbitrary resources)
-3. **ChaosExperiment CRD** installed (comes with `kubectl apply -k config/default`)
-4. **Knowledge models** loaded (see [Knowledge Models](knowledge-models.md))
-
-!!! warning "RBAC Permissions"
-    The controller has broad RBAC permissions to support dynamic experiment targets. It can delete pods, mutate ConfigMaps, revoke RBAC bindings, and modify webhook configurations. Deploy in a dedicated namespace and review CRs before approval.
-
-## Installation
-
-### Deploy the Controller
-
-```bash
-# Clone the repository
-git clone https://github.com/ugiordan/operator-chaos.git
-cd operator-chaos
-
-# Install CRD and controller
-kubectl apply -k config/default
-```
-
-This creates:
-
-- Namespace: `operator-chaos-system`
-- CRD: `chaosexperiments.chaos.operatorchaos.io`
-- ServiceAccount: `operator-chaos-controller`
-- ClusterRole/ClusterRoleBinding: RBAC for controller
-- Deployment: `operator-chaos-controller` (1 replica)
-
-**Verify deployment:**
-
-```bash
-kubectl get deployment -n operator-chaos-system
-# NAME                   READY   UP-TO-DATE   AVAILABLE   AGE
-# operator-chaos-controller   1/1     1            1           30s
-
-kubectl get crd chaosexperiments.chaos.operatorchaos.io
-# NAME                                    CREATED AT
-# chaosexperiments.chaos.operatorchaos.io   2024-03-30T12:00:00Z
-```
-
-### Load Knowledge Models
-
-The controller needs knowledge models to validate experiments and perform steady-state checks. Mount them as a ConfigMap or volume:
-
-**Option 1: ConfigMap**
-
-```bash
-# Create ConfigMap from knowledge/ directory
-kubectl create configmap operator-knowledge \
-  -n operator-chaos-system \
-  --from-file=knowledge/
-
-# Update controller deployment to mount ConfigMap
-kubectl patch deployment operator-chaos-controller -n operator-chaos-system --type=json -p='[
-  {
-    "op": "add",
-    "path": "/spec/template/spec/containers/0/args/-",
-    "value": "--knowledge-dir=/knowledge"
-  },
-  {
-    "op": "add",
-    "path": "/spec/template/spec/volumes/-",
-    "value": {"name": "knowledge", "configMap": {"name": "operator-knowledge"}}
-  },
-  {
-    "op": "add",
-    "path": "/spec/template/spec/containers/0/volumeMounts/-",
-    "value": {"name": "knowledge", "mountPath": "/knowledge", "readOnly": true}
-  }
-]'
-```
-
-**Option 2: PersistentVolume**
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: knowledge-pvc
-  namespace: operator-chaos-system
-spec:
-  accessModes: [ReadOnlyMany]
-  resources:
-    requests:
-      storage: 1Gi
----
-# Update deployment to mount PVC at /knowledge
-# Add --knowledge-dir=/knowledge to container args
-```
-
-**Verify knowledge models loaded:**
-
-```bash
-kubectl logs -n operator-chaos-system deployment/operator-chaos-controller | grep "Loaded knowledge"
-# Loaded knowledge models: kserve, odh-model-controller, dashboard
-```
-
-## Creating Experiments
-
-### ChaosExperiment CR Structure
-
-```yaml
-apiVersion: chaos.operatorchaos.io/v1alpha1
-kind: ChaosExperiment
-metadata:
-  name: my-experiment
-  namespace: my-namespace
-spec:
-  target:
-    operator: odh-model-controller
-    component: odh-model-controller
-    resource: Deployment/odh-model-controller  # optional
-
-  injection:
-    type: PodKill
-    parameters:
-      labelSelector: control-plane=odh-model-controller
-    count: 1
-    ttl: "300s"
-
-  hypothesis:
-    description: "Pod kill should recover within 120s"
-    recoveryTimeout: 120s
-
-  steadyState:
-    checks:
-      - type: conditionTrue
-        apiVersion: apps/v1
-        kind: Deployment
-        name: odh-model-controller
-        namespace: opendatahub
-        conditionType: Available
-    timeout: "30s"
-
-  blastRadius:
-    maxPodsAffected: 1
-    allowedNamespaces:
-      - opendatahub
-```
-
-**Key fields:**
-
-- **`target`**: Which operator/component to fault
-- **`injection`**: Fault type and parameters (see [Failure Modes](../failure-modes/index.md))
-- **`hypothesis`**: Expected behavior and recovery timeout
-- **`steadyState`**: Checks to run pre/post injection
-- **`blastRadius`**: Safety constraints
-
-### Example: PodKill Experiment
-
-```yaml
-apiVersion: chaos.operatorchaos.io/v1alpha1
-kind: ChaosExperiment
-metadata:
-  name: odh-model-controller-pod-kill
-  namespace: operator-chaos-experiments
-spec:
-  target:
-    operator: odh-model-controller
-    component: odh-model-controller
-
-  injection:
-    type: PodKill
-    parameters:
-      labelSelector: control-plane=odh-model-controller
-    count: 1
-
-  hypothesis:
-    description: >-
-      When the odh-model-controller pod is killed, Kubernetes should
-      recreate it within the recovery timeout and the controller should
-      resume reconciling InferenceService resources without data loss.
-    recoveryTimeout: 120s
-
-  steadyState:
-    checks:
-      - type: conditionTrue
-        apiVersion: apps/v1
-        kind: Deployment
-        name: odh-model-controller
-        namespace: opendatahub
-        conditionType: Available
-    timeout: "30s"
-
-  blastRadius:
-    maxPodsAffected: 1
-    allowedNamespaces:
-      - opendatahub
-```
-
-**Apply the experiment:**
-
-```bash
-kubectl apply -f experiment.yaml
-```
-
-**Watch progress:**
-
-```bash
-kubectl get chaosexperiment odh-model-controller-pod-kill -w
-# NAME                              PHASE           VERDICT   TYPE      TARGET                 AGE
-# odh-model-controller-pod-kill     Pending                   PodKill   odh-model-controller   1s
-# odh-model-controller-pod-kill     SteadyStatePre            PodKill   odh-model-controller   2s
-# odh-model-controller-pod-kill     Injecting                 PodKill   odh-model-controller   5s
-# odh-model-controller-pod-kill     Observing                 PodKill   odh-model-controller   6s
-# odh-model-controller-pod-kill     SteadyStatePost           PodKill   odh-model-controller   126s
-# odh-model-controller-pod-kill     Evaluating                PodKill   odh-model-controller   127s
-# odh-model-controller-pod-kill     Complete        Resilient PodKill   odh-model-controller   128s
-```
-
-### Example: ConfigDrift Experiment
+### ConfigDrift Experiment
 
 ```yaml
 apiVersion: chaos.operatorchaos.io/v1alpha1
@@ -348,10 +45,10 @@ spec:
     maxPodsAffected: 1
     allowedNamespaces:
       - opendatahub
-    allowDangerous: true  # ConfigDrift is medium danger
+    allowDangerous: true
 ```
 
-### Example: RBACRevoke Experiment (High Danger)
+### RBACRevoke Experiment (High Danger)
 
 ```yaml
 apiVersion: chaos.operatorchaos.io/v1alpha1
@@ -391,7 +88,7 @@ spec:
     maxPodsAffected: 1
     allowedNamespaces:
       - opendatahub
-    allowDangerous: true  # RBACRevoke is high danger
+    allowDangerous: true
 ```
 
 !!! danger "High-Danger Injections"
@@ -516,14 +213,14 @@ The controller emits events at each phase transition:
 kubectl get events --field-selector involvedObject.kind=ChaosExperiment
 
 # LAST SEEN   TYPE      REASON              OBJECT
-# 2m          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: Pending → SteadyStatePre
-# 2m          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: SteadyStatePre → Injecting
+# 2m          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: Pending -> SteadyStatePre
+# 2m          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: SteadyStatePre -> Injecting
 # 2m          Normal    FaultInjected       chaosexperiment/my-experiment   Deleted pod odh-model-controller-5c7d8f9b-xz4k2
-# 30s         Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: Injecting → Observing
-# 5s          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: Observing → SteadyStatePost
-# 3s          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: SteadyStatePost → Evaluating
+# 30s         Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: Injecting -> Observing
+# 5s          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: Observing -> SteadyStatePost
+# 3s          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: SteadyStatePost -> Evaluating
 # 2s          Normal    VerdictRendered     chaosexperiment/my-experiment   Verdict: Resilient (recovery: 115s, cycles: 2)
-# 1s          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: Evaluating → Complete
+# 1s          Normal    PhaseTransition     chaosexperiment/my-experiment   Phase: Evaluating -> Complete
 ```
 
 ## Safety Mechanisms
@@ -575,9 +272,7 @@ The controller enforces blast radius constraints before injection:
 
 Experiments that violate constraints are rejected with phase `Aborted` and message explaining the violation.
 
-## Advanced Usage
-
-### Scheduled Experiments with CronJobs
+## Scheduled Experiments with CronJobs
 
 Run experiments on a schedule using Kubernetes CronJobs:
 
@@ -637,7 +332,7 @@ spec:
 
 **Note**: The ServiceAccount needs RBAC to create ChaosExperiment CRs.
 
-### GitOps Integration
+## GitOps Integration
 
 Store experiments in Git and sync with Argo CD or Flux:
 
@@ -663,29 +358,7 @@ spec:
       selfHeal: false  # Don't auto-heal to preserve experiment history
 ```
 
-## Cleanup
-
-### Delete a Single Experiment
-
-```bash
-# This triggers finalizer cleanup (reverts fault if still active)
-kubectl delete chaosexperiment my-experiment
-```
-
-### Uninstall the Controller
-
-```bash
-# Delete all experiments first (ensures cleanup runs)
-kubectl delete chaosexperiments --all -A
-
-# Uninstall controller and CRD
-kubectl delete -k config/default
-```
-
-!!! warning "CRD Deletion"
-    Deleting the CRD deletes all ChaosExperiment CRs immediately, **bypassing finalizers**. Always delete experiments individually to ensure faults are reverted.
-
-### Emergency Stop
+## Emergency Stop
 
 If experiments are stuck or the controller is misbehaving:
 

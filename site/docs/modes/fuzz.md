@@ -311,4 +311,4 @@ For regression testing, commit the `testdata/fuzz/` directory to ensure discover
 
 ## Next Steps
 
-- Integrate with [SDK middleware](sdk-quickstart.md)
+- Integrate with [SDK middleware](sdk.md)

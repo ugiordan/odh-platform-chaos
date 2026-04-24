@@ -59,6 +59,6 @@ You should see the version information for the installed CLI.
 
 Choose your usage mode based on your testing needs:
 
-- **[CLI Quickstart](cli-quickstart.md)** - Run structured experiments against a live cluster
-- **[SDK Quickstart](sdk-quickstart.md)** - Inject API-level faults in your operator code
-- **[Fuzz Quickstart](fuzz-quickstart.md)** - Automated fault exploration during development
+- **[CLI Quickstart](../modes/cli.md)** - Run structured experiments against a live cluster
+- **[SDK Quickstart](../modes/sdk.md)** - Inject API-level faults in your operator code
+- **[Fuzz Quickstart](../modes/fuzz.md)** - Automated fault exploration during development

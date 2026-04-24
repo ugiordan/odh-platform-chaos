@@ -94,7 +94,7 @@ This means you can validate experiments, lint knowledge models, and scaffold new
 
     Run structured chaos experiments against a live cluster. Orchestrates the full lifecycle: steady state, inject, observe, evaluate.
 
-    [:octicons-arrow-right-24: CLI Quick Start](getting-started/cli-quickstart.md)
+    [:octicons-arrow-right-24: CLI Quick Start](modes/cli.md)
 
 - :material-code-braces: **SDK Middleware**
 
@@ -102,7 +102,7 @@ This means you can validate experiments, lint knowledge models, and scaffold new
 
     Wrap a controller-runtime client with fault injection. No code changes to your reconciler needed.
 
-    [:octicons-arrow-right-24: SDK Quick Start](getting-started/sdk-quickstart.md)
+    [:octicons-arrow-right-24: SDK Quick Start](modes/sdk.md)
 
 - :material-shuffle-variant: **Fuzz Testing**
 
@@ -110,7 +110,7 @@ This means you can validate experiments, lint knowledge models, and scaffold new
 
     Test reconciler correctness under random faults. No cluster needed — uses fake client.
 
-    [:octicons-arrow-right-24: Fuzz Quick Start](getting-started/fuzz-quickstart.md)
+    [:octicons-arrow-right-24: Fuzz Quick Start](modes/fuzz.md)
 
 - :material-upload: **Upgrade Testing**
 

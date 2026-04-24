@@ -206,4 +206,4 @@ func TestReconcilerWithConnectionErrors(t *testing.T) {
 
 ## Next Steps
 
-- Integrate with [fuzz testing](fuzz-quickstart.md)
+- Integrate with [fuzz testing](fuzz.md)

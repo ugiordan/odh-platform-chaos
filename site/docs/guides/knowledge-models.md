@@ -650,7 +650,7 @@ The generator reads your knowledge model and produces:
 - **Invariants** from `steadyState.checks` (verify resources survive reconciliation)
 - **Seed corpus entries** from architectural traits (webhooks produce webhook-denial seeds, finalizers produce conflict seeds, etc.)
 
-See the [Fuzz Quick Start](../getting-started/fuzz-quickstart.md) for details on the generated test structure, and the [CLI Reference](../reference/cli-commands.md#operator-chaos-generate-fuzz-targets) for command options.
+See the [Fuzz Quick Start](../modes/fuzz.md) for details on the generated test structure, and the [CLI Reference](../reference/cli-commands.md#operator-chaos-generate-fuzz-targets) for command options.
 
 ## Versioned Knowledge Models
 
@@ -760,7 +760,7 @@ See [Upgrade Testing Guide](upgrade-testing.md) for full workflow.
 
 ## Next Steps
 
-- Learn about [Controller Mode](controller-mode.md) to run experiments as CRDs
-- Generate fuzz tests with [Fuzz Quick Start](../getting-started/fuzz-quickstart.md)
+- Learn about [Controller Mode](../modes/controller.md) to run experiments as CRDs
+- Generate fuzz tests with [Fuzz Quick Start](../modes/fuzz.md)
 - Test operator upgrades with [Upgrade Testing Guide](upgrade-testing.md)
 - Explore the [knowledge/](https://github.com/ugiordan/operator-chaos/tree/main/knowledge) directory for real-world examples
